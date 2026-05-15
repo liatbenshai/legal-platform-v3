@@ -7,6 +7,7 @@ export {
   documentSectionSchema,
   documentStatusSchema,
   documentTypeSchema,
+  documentVersionSchema,
   sectionLevelSchema,
 } from './document.schema'
 export { sectionTemplateSchema, sectionVariantSchema } from './template.schema'

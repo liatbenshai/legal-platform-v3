@@ -7,6 +7,7 @@ export type {
   DocumentSection,
   DocumentStatus,
   DocumentType,
+  DocumentVersion,
   SectionLevel,
 } from './document'
 export type { SectionTemplate, SectionVariant } from './template'

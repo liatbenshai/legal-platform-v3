@@ -58,3 +58,12 @@ export interface Document {
   createdAt: Date
   updatedAt: Date
 }
+
+export interface DocumentVersion {
+  id: string
+  documentId: string
+  versionNumber: number
+  snapshot: Document
+  createdAt: Date
+  createdBy: string
+}

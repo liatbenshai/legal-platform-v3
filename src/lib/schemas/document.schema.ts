@@ -73,3 +73,15 @@ export const documentSchema = z.object({
   createdAt: z.coerce.date({ error: 'תאריך יצירה לא תקין' }),
   updatedAt: z.coerce.date({ error: 'תאריך עדכון לא תקין' }),
 })
+
+export const documentVersionSchema = z.object({
+  id: z.uuid({ error: 'מזהה לא תקין' }),
+  documentId: z.uuid({ error: 'מזהה מסמך לא תקין' }),
+  versionNumber: z
+    .number({ error: 'יש להזין מספר גרסה' })
+    .int({ error: 'מספר גרסה חייב להיות מספר שלם' })
+    .positive({ error: 'מספר גרסה חייב להיות חיובי' }),
+  snapshot: documentSchema,
+  createdAt: z.coerce.date({ error: 'תאריך יצירה לא תקין' }),
+  createdBy: z.uuid({ error: 'מזהה משתמש לא תקין' }),
+})
