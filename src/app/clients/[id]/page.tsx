@@ -476,15 +476,36 @@ export default function ClientDetailPage() {
         </section>
       </div>
 
-      <PersonForm
-        open={personModalOpen}
-        clientId={client.id}
-        initialValues={editingPerson}
-        onClose={() => setPersonModalOpen(false)}
-        onSaved={() => {
-          void reloadPersons()
-        }}
-      />
+      {personModalOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 overflow-y-auto"
+          role="dialog"
+          aria-modal="true"
+        >
+          <div className="bg-white rounded-2xl shadow-xl max-w-lg w-full p-6 relative my-8">
+            <button
+              type="button"
+              onClick={() => setPersonModalOpen(false)}
+              aria-label="סגירה"
+              className="absolute top-3 left-3 w-8 h-8 flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-full text-2xl leading-none"
+            >
+              ×
+            </button>
+            <h2 className="text-2xl font-bold text-slate-800 mb-6 text-center">
+              {editingPerson ? 'עריכת אדם' : 'הוספת אדם חדש'}
+            </h2>
+            <PersonForm
+              clientId={client.id}
+              initialData={editingPerson}
+              onSuccess={() => {
+                setPersonModalOpen(false)
+                void reloadPersons()
+              }}
+              onCancel={() => setPersonModalOpen(false)}
+            />
+          </div>
+        </div>
+      )}
 
       <ConfirmDialog
         open={confirmDeleteClientOpen}
