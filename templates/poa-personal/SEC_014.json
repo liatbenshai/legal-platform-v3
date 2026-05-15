@@ -1,0 +1,19 @@
+{
+  "sectionId": "SEC_014",
+  "category": "poa-personal",
+  "documentTypes": ["poa-personal"],
+  "title": "להישאר בבית - חזק",
+  "description": "העדפה חזקה להישאר במקום המגורים הנוכחי; מעבר למוסד רק במקרים קיצוניים.",
+  "variants": [
+    {
+      "id": "default",
+      "label": "סטנדרטי",
+      "content": "רצוני להישאר במקום מגוריי הנוכחי בכל מצב.\n\nמעבר למוסד אפשרי רק במקרים קיצוניים:\n- אין אפשרות לטיפול ביתי הולם\n- המצב הרפואי מחייב טיפול מוסדי\n- באישור בית משפט"
+    }
+  ],
+  "requiredActors": [],
+  "legalBasis": "",
+  "isRequired": false,
+  "conflictsWith": ["SEC_017"],
+  "tags": ["מגורים", "בית", "סיעוד"]
+}

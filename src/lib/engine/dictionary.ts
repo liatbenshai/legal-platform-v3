@@ -21,6 +21,8 @@ export const dictionary: Record<string, InflectedWord> = {
   'רוצה': { male: 'רוצה', female: 'רוצה', plural: 'רוצים' },
   'מסכים': { male: 'מסכים', female: 'מסכימה', plural: 'מסכימים' },
   'מבקש': { male: 'מבקש', female: 'מבקשת', plural: 'מבקשים' },
+  'מעדיף': { male: 'מעדיף', female: 'מעדיפה', plural: 'מעדיפים' },
+  'אינני': { male: 'אינני', female: 'איני', plural: 'איננו' },
   'יליד': { male: 'יליד', female: 'ילידת', plural: 'ילידי' },
   'תושב': { male: 'תושב', female: 'תושבת', plural: 'תושבי' },
 
@@ -58,6 +60,7 @@ export const dictionary: Record<string, InflectedWord> = {
   'יקיים': { male: 'יקיים', female: 'תקיים', plural: 'יקיימו' },
   'ייצג': { male: 'ייצג', female: 'תייצג', plural: 'ייצגו' },
   'יתייעץ': { male: 'יתייעץ', female: 'תתייעץ', plural: 'יתייעצו' },
+  'ייגע': { male: 'ייגע', female: 'תיגע', plural: 'ייגעו' },
 
   // === תארים ===
   'רשאי': { male: 'רשאי', female: 'רשאית', plural: 'רשאים' },
@@ -71,6 +74,7 @@ export const dictionary: Record<string, InflectedWord> = {
   'ראוי': { male: 'ראוי', female: 'ראויה', plural: 'ראויים' },
   'נאמן': { male: 'נאמן', female: 'נאמנה', plural: 'נאמנים' },
   'מתאים': { male: 'מתאים', female: 'מתאימה', plural: 'מתאימים' },
+  'אינו': { male: 'אינו', female: 'אינה', plural: 'אינם' },
 
   // === כינויי שייכות בגוף ראשון (של הממנה) ===
   // אלה לא משתנים בין זכר לנקבה, רק ביחיד-רבים

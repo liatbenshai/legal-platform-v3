@@ -1,0 +1,19 @@
+{
+  "sectionId": "SEC_018",
+  "category": "poa-personal",
+  "documentTypes": ["poa-personal"],
+  "title": "דרישת עברית מהמטפלת",
+  "description": "דרישה שהמטפלת תדע עברית שוטפת לצורך תקשורת והבנה הדדית.",
+  "variants": [
+    {
+      "id": "default",
+      "label": "סטנדרטי",
+      "content": "במקרה של טיפול סיעודי:\n\nדרישה שהמטפלת תדע עברית שוטפת.\n\nיכולת התקשורת חשובה לטיפול הולם והבנה הדדית."
+    }
+  ],
+  "requiredActors": [],
+  "legalBasis": "",
+  "isRequired": false,
+  "conflictsWith": ["SEC_019", "SEC_020"],
+  "tags": ["מטפלת", "שפה", "עברית"]
+}
