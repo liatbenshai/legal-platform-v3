@@ -20,6 +20,7 @@ export const dictionary: Record<string, InflectedWord> = {
   'מבין': { male: 'מבין', female: 'מבינה', plural: 'מבינים' },
   'רוצה': { male: 'רוצה', female: 'רוצה', plural: 'רוצים' },
   'מסכים': { male: 'מסכים', female: 'מסכימה', plural: 'מסכימים' },
+  'מבקש': { male: 'מבקש', female: 'מבקשת', plural: 'מבקשים' },
   'יליד': { male: 'יליד', female: 'ילידת', plural: 'ילידי' },
   'תושב': { male: 'תושב', female: 'תושבת', plural: 'תושבי' },
 
