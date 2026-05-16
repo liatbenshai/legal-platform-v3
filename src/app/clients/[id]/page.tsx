@@ -224,10 +224,12 @@ export default function ClientDetailPage() {
     <main className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
       <header className="bg-white border-b border-slate-200">
         <div className="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between">
-          <h1 className="text-xl font-bold text-slate-800">תיק לקוח</h1>
+          <h1 className="text-xl font-bold text-slate-800 truncate">
+            {client.displayName}
+          </h1>
           <Link
             href="/clients"
-            className="text-sm text-slate-600 hover:text-slate-900"
+            className="text-sm text-slate-600 hover:text-slate-900 whitespace-nowrap"
           >
             ← חזרה לרשימת הלקוחות
           </Link>

@@ -36,7 +36,7 @@ export function NewClientModal({
     e.preventDefault()
     const trimmedName = displayName.trim()
     if (!trimmedName) {
-      setError('יש להזין שם תיק')
+      setError('יש להזין שם לקוח')
       return
     }
     if (!userId) {
@@ -88,7 +88,7 @@ export function NewClientModal({
           לקוח חדש
         </h2>
         <p className="text-slate-500 text-center text-sm mb-6">
-          יצירת תיק לקוח חדש
+          יצירת לקוח חדש
         </p>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -97,7 +97,7 @@ export function NewClientModal({
               htmlFor="display-name"
               className="block text-sm font-medium text-slate-700 mb-1"
             >
-              שם התיק <span className="text-red-600">*</span>
+              שם הלקוח <span className="text-red-600">*</span>
             </label>
             <input
               id="display-name"
@@ -123,7 +123,7 @@ export function NewClientModal({
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               rows={3}
-              placeholder="הערות פנימיות על התיק"
+              placeholder="הערות פנימיות על הלקוח"
               disabled={isSaving}
               className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none disabled:bg-slate-50"
             />
