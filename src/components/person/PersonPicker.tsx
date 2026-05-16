@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useId, useMemo, useState } from 'react'
+import { useCallback, useEffect, useId, useMemo, useState } from 'react'
+import { PersonForm } from '@/components/person/PersonForm'
 import { getPersons } from '@/lib/db/persons'
 import { createClient } from '@/lib/db/supabase'
 import type { Person } from '@/lib/types'
@@ -25,28 +26,26 @@ export function PersonPicker({
   const [persons, setPersons] = useState<Person[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [showAddForm, setShowAddForm] = useState(false)
   const groupName = useId()
 
-  useEffect(() => {
-    let cancelled = false
-    setIsLoading(true)
-    setError(null)
+  const loadPersons = useCallback(async () => {
     const supabase = createClient()
-    getPersons(supabase, clientId)
-      .then((p) => {
-        if (cancelled) return
-        setPersons(p)
-        setIsLoading(false)
-      })
-      .catch(() => {
-        if (cancelled) return
-        setError('שגיאה בטעינת אנשי התיק')
-        setIsLoading(false)
-      })
-    return () => {
-      cancelled = true
+    try {
+      const p = await getPersons(supabase, clientId)
+      setPersons(p)
+      setError(null)
+    } catch {
+      setError('שגיאה בטעינת אנשי התיק')
+    } finally {
+      setIsLoading(false)
     }
   }, [clientId])
+
+  useEffect(() => {
+    setIsLoading(true)
+    void loadPersons()
+  }, [loadPersons])
 
   const visible = useMemo(
     () => persons.filter((p) => !excludeIds.includes(p.id)),
@@ -64,40 +63,56 @@ export function PersonPicker({
     }
   }
 
-  if (isLoading) {
-    return (
-      <p className="text-slate-500 text-sm py-4 text-center">
-        טוען אנשים...
-      </p>
-    )
+  async function handlePersonCreated(newPerson: Person) {
+    await loadPersons()
+    if (multiple) {
+      onChange([...selectedIds, newPerson.id])
+    } else {
+      onChange([newPerson.id])
+    }
   }
 
-  if (error) {
-    return (
-      <p
-        role="alert"
-        className="text-red-700 bg-red-50 border border-red-200 p-3 rounded-lg text-sm"
-      >
-        {error}
-      </p>
-    )
-  }
+  const addButton = (
+    <button
+      type="button"
+      onClick={() => setShowAddForm(true)}
+      className="w-full mt-3 px-4 py-2 border border-dashed border-slate-300 text-slate-600 hover:text-blue-700 hover:border-blue-400 hover:bg-blue-50 rounded-lg text-sm transition-colors"
+    >
+      + הוסף אדם חדש
+    </button>
+  )
 
-  if (visible.length === 0) {
-    return (
-      <p className="text-slate-500 text-sm py-4 text-center">
-        אין אנשים זמינים לבחירה.
-      </p>
-    )
-  }
+  function renderBody() {
+    if (isLoading) {
+      return (
+        <p className="text-slate-500 text-sm py-4 text-center">
+          טוען אנשים...
+        </p>
+      )
+    }
 
-  return (
-    <div>
-      {label && (
-        <span className="block text-sm font-medium text-slate-700 mb-2">
-          {label}
-        </span>
-      )}
+    if (error) {
+      return (
+        <p
+          role="alert"
+          className="text-red-700 bg-red-50 border border-red-200 p-3 rounded-lg text-sm"
+        >
+          {error}
+        </p>
+      )
+    }
+
+    if (visible.length === 0) {
+      return (
+        <p className="text-slate-500 text-sm py-4 text-center">
+          {persons.length === 0
+            ? 'אין אנשים בתיק עדיין.'
+            : 'אין אנשים זמינים לבחירה.'}
+        </p>
+      )
+    }
+
+    return (
       <ul className="space-y-2">
         {visible.map((person) => {
           const isSelected = selectedIds.includes(person.id)
@@ -134,6 +149,48 @@ export function PersonPicker({
           )
         })}
       </ul>
+    )
+  }
+
+  return (
+    <div>
+      {label && (
+        <span className="block text-sm font-medium text-slate-700 mb-2">
+          {label}
+        </span>
+      )}
+      {renderBody()}
+      {addButton}
+
+      {showAddForm && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 overflow-y-auto"
+          role="dialog"
+          aria-modal="true"
+        >
+          <div className="bg-white rounded-2xl shadow-xl max-w-lg w-full p-6 relative my-8">
+            <button
+              type="button"
+              onClick={() => setShowAddForm(false)}
+              aria-label="סגירה"
+              className="absolute top-3 left-3 w-8 h-8 flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-full text-2xl leading-none"
+            >
+              ×
+            </button>
+            <h2 className="text-2xl font-bold text-slate-800 mb-6 text-center">
+              הוספת אדם חדש
+            </h2>
+            <PersonForm
+              clientId={clientId}
+              onSuccess={(person) => {
+                setShowAddForm(false)
+                void handlePersonCreated(person)
+              }}
+              onCancel={() => setShowAddForm(false)}
+            />
+          </div>
+        </div>
+      )}
     </div>
   )
 }
