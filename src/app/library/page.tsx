@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { SectionEditor } from '@/components/library/SectionEditor'
-import { getTemplates } from '@/lib/db/templates'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
+import { deleteUserTemplate, getTemplates } from '@/lib/db/templates'
 import { createClient } from '@/lib/db/supabase'
 import { useUser } from '@/lib/hooks/useUser'
 import {
@@ -15,6 +16,7 @@ import type { DocumentType, SectionTemplate } from '@/lib/types'
 
 interface UnifiedSection {
   id: string
+  dbId?: string
   title: string
   description: string
   category: DocumentType
@@ -38,6 +40,7 @@ function systemToUnified(s: LibrarySection): UnifiedSection {
 function userToUnified(t: SectionTemplate): UnifiedSection {
   return {
     id: `user-${t.id}`,
+    dbId: t.id,
     title: t.title,
     description: t.description,
     category: t.category,
@@ -70,6 +73,10 @@ export default function LibraryPage() {
   const [previewSection, setPreviewSection] = useState<UnifiedSection | null>(
     null
   )
+  const [sectionToDelete, setSectionToDelete] = useState<UnifiedSection | null>(
+    null
+  )
+  const [isDeleting, setIsDeleting] = useState(false)
 
   const loadUserSections = useCallback(async () => {
     if (!user) {
@@ -97,6 +104,21 @@ export default function LibraryPage() {
     if (userLoading) return
     void loadUserSections()
   }, [userLoading, loadUserSections])
+
+  async function handleDelete() {
+    if (!sectionToDelete?.dbId) return
+    setIsDeleting(true)
+    try {
+      const supabase = createClient()
+      await deleteUserTemplate(supabase, sectionToDelete.dbId)
+      setSectionToDelete(null)
+      await loadUserSections()
+    } catch {
+      setError('שגיאה במחיקת הסעיף')
+    } finally {
+      setIsDeleting(false)
+    }
+  }
 
   const systemSections = useMemo(
     () => sectionLibrary.map(systemToUnified),
@@ -220,45 +242,60 @@ export default function LibraryPage() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
             {filtered.map((s) => (
-              <button
+              <div
                 key={s.id}
-                type="button"
-                onClick={() => setPreviewSection(s)}
-                className="text-right bg-white rounded-xl border border-slate-200 p-4 hover:border-blue-400 hover:shadow-sm transition-all"
+                className="relative bg-white rounded-xl border border-slate-200 hover:border-blue-400 hover:shadow-sm transition-all"
               >
-                <div className="flex items-start justify-between gap-2 mb-2">
-                  <h3 className="font-semibold text-slate-800 flex-1">
-                    {s.title}
-                  </h3>
-                  <span
-                    className={`text-[10px] px-1.5 py-0.5 rounded flex-shrink-0 ${
-                      s.isSystem
-                        ? 'bg-slate-100 text-slate-600'
-                        : 'bg-emerald-100 text-emerald-700'
-                    }`}
-                  >
-                    {s.isSystem ? 'מערכת' : 'שלי'}
-                  </span>
-                </div>
-                {s.description && (
-                  <p className="text-sm text-slate-500 line-clamp-2 mb-3">
-                    {s.description}
-                  </p>
-                )}
-                <div className="flex flex-wrap gap-1">
-                  <span className="text-[10px] px-1.5 py-0.5 bg-blue-50 text-blue-700 rounded">
-                    {CATEGORY_LABELS[s.category]}
-                  </span>
-                  {s.tags.slice(0, 4).map((tag) => (
+                <button
+                  type="button"
+                  onClick={() => setPreviewSection(s)}
+                  className="text-right w-full p-4"
+                >
+                  <div className="flex items-start justify-between gap-2 mb-2 pl-7">
+                    <h3 className="font-semibold text-slate-800 flex-1">
+                      {s.title}
+                    </h3>
                     <span
-                      key={tag}
-                      className="text-[10px] px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded"
+                      className={`text-[10px] px-1.5 py-0.5 rounded flex-shrink-0 ${
+                        s.isSystem
+                          ? 'bg-slate-100 text-slate-600'
+                          : 'bg-emerald-100 text-emerald-700'
+                      }`}
                     >
-                      {tag}
+                      {s.isSystem ? 'מערכת' : 'שלי'}
                     </span>
-                  ))}
-                </div>
-              </button>
+                  </div>
+                  {s.description && (
+                    <p className="text-sm text-slate-500 line-clamp-2 mb-3">
+                      {s.description}
+                    </p>
+                  )}
+                  <div className="flex flex-wrap gap-1">
+                    <span className="text-[10px] px-1.5 py-0.5 bg-blue-50 text-blue-700 rounded">
+                      {CATEGORY_LABELS[s.category]}
+                    </span>
+                    {s.tags.slice(0, 4).map((tag) => (
+                      <span
+                        key={tag}
+                        className="text-[10px] px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded"
+                      >
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                </button>
+                {!s.isSystem && (
+                  <button
+                    type="button"
+                    onClick={() => setSectionToDelete(s)}
+                    aria-label={`מחק את ${s.title}`}
+                    title="מחק סעיף"
+                    className="absolute top-3 left-3 w-7 h-7 flex items-center justify-center text-slate-400 hover:text-red-600 hover:bg-red-50 rounded text-lg leading-none"
+                  >
+                    ×
+                  </button>
+                )}
+              </div>
             ))}
           </div>
         )}
@@ -271,6 +308,21 @@ export default function LibraryPage() {
         onSaved={() => {
           void loadUserSections()
         }}
+      />
+
+      <ConfirmDialog
+        open={Boolean(sectionToDelete)}
+        title="מחיקת סעיף"
+        message={
+          sectionToDelete
+            ? `האם את/ה בטוח/ה שברצונך למחוק את "${sectionToDelete.title}"? לא ניתן לשחזר.`
+            : ''
+        }
+        confirmLabel="מחק"
+        destructive
+        isProcessing={isDeleting}
+        onConfirm={handleDelete}
+        onCancel={() => setSectionToDelete(null)}
       />
 
       {previewSection && (
