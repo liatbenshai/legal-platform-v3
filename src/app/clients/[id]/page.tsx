@@ -11,7 +11,8 @@ import {
   updateClient,
 } from '@/lib/db/clients'
 import { deletePerson, getPersons } from '@/lib/db/persons'
-import { getDocuments } from '@/lib/db/documents'
+import { createDocument, getDocuments } from '@/lib/db/documents'
+import { useUser } from '@/lib/hooks/useUser'
 import { createClient as createSupabaseClient } from '@/lib/db/supabase'
 import type {
   Client,
@@ -55,6 +56,7 @@ function formatDate(d: Date): string {
 export default function ClientDetailPage() {
   const params = useParams<{ id: string }>()
   const router = useRouter()
+  const { user } = useUser()
   const clientId = params.id
 
   const [supabase] = useState(() => createSupabaseClient())
@@ -84,6 +86,25 @@ export default function ClientDetailPage() {
     string | null
   >(null)
   const [isDeletingPerson, setIsDeletingPerson] = useState(false)
+  const [isCreatingDoc, setIsCreatingDoc] = useState(false)
+
+  async function handleCreateDocument() {
+    if (!user) return
+    setIsCreatingDoc(true)
+    try {
+      const newDoc = await createDocument(
+        supabase,
+        clientId,
+        user.id,
+        'poa-property',
+        'מסמך חדש'
+      )
+      router.push(`/clients/${clientId}/documents/${newDoc.id}`)
+    } catch {
+      setError('שגיאה ביצירת המסמך')
+      setIsCreatingDoc(false)
+    }
+  }
 
   const loadAll = useCallback(async () => {
     setIsLoading(true)
@@ -429,12 +450,14 @@ export default function ClientDetailPage() {
             ) : (
               <div>
                 <div className="flex justify-end mb-4">
-                  <Link
-                    href={`/clients/${client.id}/documents/new`}
-                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg"
+                  <button
+                    type="button"
+                    onClick={handleCreateDocument}
+                    disabled={isCreatingDoc || !user}
+                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 disabled:cursor-not-allowed text-white text-sm font-medium rounded-lg"
                   >
-                    + מסמך חדש
-                  </Link>
+                    {isCreatingDoc ? 'יוצר...' : '+ מסמך חדש'}
+                  </button>
                 </div>
 
                 {documents.length === 0 ? (

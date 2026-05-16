@@ -1,11 +1,19 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import Link from 'next/link'
 import { useParams } from 'next/navigation'
-import { DocumentPreview } from '@/components/editor/DocumentPreview'
-import { SectionLibrary } from '@/components/editor/SectionLibrary'
-import { SelectedSections } from '@/components/editor/SelectedSections'
+import { DocumentCanvas } from '@/components/editor/v2/DocumentCanvas'
+import { DocumentHeader } from '@/components/editor/v2/DocumentHeader'
+import { FormPanel } from '@/components/editor/v2/FormPanel'
+import { StepNavigation } from '@/components/editor/v2/StepNavigation'
+import { StepTabs, TABS, type TabId } from '@/components/editor/v2/StepTabs'
+import { TitleBar } from '@/components/editor/v2/TitleBar'
+import { AttorneysTab } from '@/components/editor/v2/tabs/AttorneysTab'
+import { DirectivesTab } from '@/components/editor/v2/tabs/DirectivesTab'
+import { PowersTab } from '@/components/editor/v2/tabs/PowersTab'
+import { PrincipalTab } from '@/components/editor/v2/tabs/PrincipalTab'
+import { SignatureTab } from '@/components/editor/v2/tabs/SignatureTab'
+import { getClient } from '@/lib/db/clients'
 import {
   getUserDictionaryEntries,
   mergeDictionaries,
@@ -18,16 +26,82 @@ import { getTemplates } from '@/lib/db/templates'
 import { dictionary as staticDictionary } from '@/lib/engine/dictionary'
 import { renderDocument } from '@/lib/engine/renderer'
 import { exportToWord } from '@/lib/export/word'
-import { sectionLibrary, type LibrarySection } from '@/lib/sections/library'
 import { useUser } from '@/lib/hooks/useUser'
+import {
+  sectionLibrary,
+  type LibrarySection,
+} from '@/lib/sections/library'
 import type {
-  ActorRole,
+  Client,
   Document,
+  DocumentActor,
   DocumentSection,
+  DocumentStatus,
   DocumentType,
   Person,
   SectionTemplate,
 } from '@/lib/types'
+
+const ALL_DOMAINS: DocumentType[] = [
+  'poa-property',
+  'poa-personal',
+  'poa-medical',
+]
+
+const STEP_META: Record<TabId, { title: string; description: string }> = {
+  principal: {
+    title: 'פרטי הממנה',
+    description: 'בחרי את האדם שיוצא ייפוי הכוח בשמו.',
+  },
+  attorneys: {
+    title: 'מיופי הכוח',
+    description: 'מי יקבל את הסמכויות לפעול בשם הממנה.',
+  },
+  powers: {
+    title: 'סמכויות',
+    description: 'באילו תחומים מיופה הכוח מוסמך לפעול.',
+  },
+  directives: {
+    title: 'הנחיות מקדימות',
+    description: 'בחרי סעיפים שמפרטים איך לפעול במצבים שונים.',
+  },
+  signature: {
+    title: 'חתימה ואישור',
+    description: 'סקירה אחרונה לפני ייצוא ל-Word.',
+  },
+}
+
+type SaveStatus = 'idle' | 'saving' | 'saved' | 'error'
+
+function parseDomains(variables: Record<string, string>): DocumentType[] {
+  const raw = variables['domains']
+  if (!raw) return ALL_DOMAINS
+  const parsed = raw
+    .split(',')
+    .map((d) => d.trim())
+    .filter((d): d is DocumentType => (ALL_DOMAINS as string[]).includes(d))
+  return parsed.length > 0 ? parsed : ALL_DOMAINS
+}
+
+function getActorPersonIds(
+  doc: Document | null,
+  role: DocumentActor['role']
+): string[] {
+  if (!doc) return []
+  return doc.actors.find((a) => a.role === role)?.personIds ?? []
+}
+
+function setActor(
+  doc: Document,
+  role: DocumentActor['role'],
+  personIds: string[]
+): Document {
+  const others = doc.actors.filter((a) => a.role !== role)
+  if (personIds.length === 0) {
+    return { ...doc, actors: others }
+  }
+  return { ...doc, actors: [...others, { role, personIds }] }
+}
 
 function templateToLibrarySection(t: SectionTemplate): LibrarySection {
   return {
@@ -45,50 +119,16 @@ function templateToLibrarySection(t: SectionTemplate): LibrarySection {
   }
 }
 
-const ALL_DOMAINS: DocumentType[] = [
-  'poa-property',
-  'poa-personal',
-  'poa-medical',
-]
-
-function parseDomains(variables: Record<string, string>): DocumentType[] {
-  const raw = variables['domains']
-  if (!raw) return ALL_DOMAINS
-  const parsed = raw
-    .split(',')
-    .map((d) => d.trim())
-    .filter((d): d is DocumentType =>
-      (ALL_DOMAINS as string[]).includes(d)
-    )
-  return parsed.length > 0 ? parsed : ALL_DOMAINS
-}
-
-type SaveStatus = 'idle' | 'saving' | 'saved' | 'error'
-
-const ACTOR_ROLE_LABELS: Partial<Record<ActorRole, string>> = {
-  ממנה: 'ממנה',
-  מיופה: 'מיופי כוח',
-}
-
-function describeGender(persons: Person[]): string {
-  if (persons.length === 0) return ''
-  if (persons.length > 1) {
-    const allFemale = persons.every((p) => p.gender === 'female')
-    return allFemale ? 'נקבות (רבות)' : 'רבים'
-  }
-  return persons[0].gender === 'female' ? 'נקבה' : 'זכר'
-}
-
 function makeNewSection(
-  templateSection: LibrarySection,
+  template: LibrarySection,
   order: number
 ): DocumentSection {
-  const variant = templateSection.variants[0]
+  const variant = template.variants[0]
   return {
     id: crypto.randomUUID(),
     order,
-    templateId: templateSection.sectionId,
-    title: templateSection.title,
+    templateId: template.sectionId,
+    title: template.title,
     content: variant.content,
     variant: variant.id,
     level: 'main',
@@ -103,13 +143,21 @@ export default function DocumentEditorPage() {
 
   const [supabase] = useState(() => createClient())
 
+  const [client, setClient] = useState<Client | null>(null)
   const [document, setDocument] = useState<Document | null>(null)
   const [persons, setPersons] = useState<Person[]>([])
   const [userSections, setUserSections] = useState<LibrarySection[]>([])
-  const [userDictionary, setUserDictionary] = useState<UserDictionaryEntry[]>([])
+  const [userDictionary, setUserDictionary] = useState<UserDictionaryEntry[]>(
+    []
+  )
+
+  const [activeTab, setActiveTab] = useState<TabId>('principal')
+
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle')
+  const [isExporting, setIsExporting] = useState(false)
+  const [exportError, setExportError] = useState<string | null>(null)
 
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const pendingDocRef = useRef<Document | null>(null)
@@ -118,14 +166,19 @@ export default function DocumentEditorPage() {
     let cancelled = false
     setIsLoading(true)
     setError(null)
-    Promise.all([getDocument(supabase, docId), getPersons(supabase, clientId)])
-      .then(([d, p]) => {
+    Promise.all([
+      getDocument(supabase, docId),
+      getPersons(supabase, clientId),
+      getClient(supabase, clientId),
+    ])
+      .then(([d, p, c]) => {
         if (cancelled) return
         if (!d) {
           setError('המסמך לא נמצא')
         } else {
           setDocument(d)
           setPersons(p)
+          setClient(c)
         }
         setIsLoading(false)
       })
@@ -147,17 +200,13 @@ export default function DocumentEditorPage() {
         if (cancelled) return
         setUserSections(templates.map(templateToLibrarySection))
       })
-      .catch(() => {
-        // user sections are optional; failure here doesn't block the editor
-      })
+      .catch(() => undefined)
     getUserDictionaryEntries(supabase, user.id)
       .then((entries) => {
         if (cancelled) return
         setUserDictionary(entries)
       })
-      .catch(() => {
-        // user dictionary is optional; static dictionary is used as fallback
-      })
+      .catch(() => undefined)
     return () => {
       cancelled = true
     }
@@ -199,20 +248,43 @@ export default function DocumentEditorPage() {
     }
   }, [])
 
-  const rendered = useMemo(() => {
-    if (!document) return []
-    return renderDocument({ document, persons, dictionary: mergedDictionary })
-  }, [document, persons, mergedDictionary])
-
-  const selectedTemplateIds = useMemo(
-    () =>
-      document
-        ? (document.sections
-            .map((s) => s.templateId)
-            .filter(Boolean) as string[])
-        : [],
-    [document]
+  const applyChange = useCallback(
+    (updater: (doc: Document) => Document) => {
+      setDocument((curr) => {
+        if (!curr) return curr
+        const next = updater(curr)
+        scheduleSave(next)
+        return next
+      })
+    },
+    [scheduleSave]
   )
+
+  const principalIds = getActorPersonIds(document, 'ממנה')
+  const attorneyIds = getActorPersonIds(document, 'מיופה')
+
+  const principal = useMemo(
+    () => persons.find((p) => p.id === principalIds[0]) ?? null,
+    [persons, principalIds]
+  )
+
+  const attorneys = useMemo(
+    () =>
+      attorneyIds
+        .map((id) => persons.find((p) => p.id === id))
+        .filter((p): p is Person => p !== undefined),
+    [persons, attorneyIds]
+  )
+
+  // Auto-update title when principal is set (only if title is still default)
+  useEffect(() => {
+    if (!document || !principal) return
+    const desiredTitle = `ייפוי כוח - ${principal.firstName} ${principal.lastName}`
+    if (document.title === 'מסמך חדש' && document.title !== desiredTitle) {
+      applyChange((doc) => ({ ...doc, title: desiredTitle }))
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [principal?.id])
 
   const allowedDomains = useMemo(
     () => (document ? parseDomains(document.variables) : ALL_DOMAINS),
@@ -227,21 +299,51 @@ export default function DocumentEditorPage() {
     [allowedDomains, userSections]
   )
 
-  function applyChange(updater: (doc: Document) => Document) {
-    if (!document) return
-    const next = updater(document)
-    setDocument(next)
-    scheduleSave(next)
+  const rendered = useMemo(() => {
+    if (!document) return []
+    return renderDocument({
+      document,
+      persons,
+      dictionary: mergedDictionary,
+    })
+  }, [document, persons, mergedDictionary])
+
+  function handlePersonCreated(p: Person) {
+    setPersons((curr) => [...curr, p])
   }
 
-  function handleAdd(template: LibrarySection) {
+  function handlePrincipalChange(ids: string[]) {
+    applyChange((doc) => setActor(doc, 'ממנה', ids))
+  }
+
+  function handleAttorneysChange(ids: string[]) {
+    applyChange((doc) => setActor(doc, 'מיופה', ids))
+  }
+
+  function handleDomainToggle(domain: DocumentType) {
+    applyChange((doc) => {
+      const current = parseDomains(doc.variables)
+      const next = current.includes(domain)
+        ? current.filter((d) => d !== domain)
+        : [...current, domain]
+      return {
+        ...doc,
+        variables: { ...doc.variables, domains: next.join(',') },
+      }
+    })
+  }
+
+  function handleAddSection(template: LibrarySection) {
     applyChange((doc) => ({
       ...doc,
-      sections: [...doc.sections, makeNewSection(template, doc.sections.length)],
+      sections: [
+        ...doc.sections,
+        makeNewSection(template, doc.sections.length),
+      ],
     }))
   }
 
-  function handleRemove(sectionId: string) {
+  function handleRemoveSection(sectionId: string) {
     applyChange((doc) => ({
       ...doc,
       sections: doc.sections
@@ -250,29 +352,27 @@ export default function DocumentEditorPage() {
     }))
   }
 
-  function handleMove(sectionId: string, delta: -1 | 1) {
+  function handleMoveSection(sectionId: string, delta: -1 | 1) {
     applyChange((doc) => {
       const sorted = [...doc.sections].sort((a, b) => a.order - b.order)
       const idx = sorted.findIndex((s) => s.id === sectionId)
       if (idx < 0) return doc
-      const swapIdx = idx + delta
-      if (swapIdx < 0 || swapIdx >= sorted.length) return doc
+      const swap = idx + delta
+      if (swap < 0 || swap >= sorted.length) return doc
       const next = [...sorted]
-      ;[next[idx], next[swapIdx]] = [next[swapIdx], next[idx]]
-      return {
-        ...doc,
-        sections: next.map((s, i) => ({ ...s, order: i })),
-      }
+      ;[next[idx], next[swap]] = [next[swap], next[idx]]
+      return { ...doc, sections: next.map((s, i) => ({ ...s, order: i })) }
     })
   }
 
-  const [isExporting, setIsExporting] = useState(false)
-  const [exportError, setExportError] = useState<string | null>(null)
+  function handleStatusChange(status: DocumentStatus) {
+    applyChange((doc) => ({ ...doc, status }))
+  }
 
   async function handleExport() {
     if (!document) return
     if (document.sections.length === 0) {
-      setExportError('המסמך ריק. בחרי לפחות סעיף אחד לפני ייצוא.')
+      setExportError('המסמך ריק. בחרי לפחות סעיף אחד.')
       return
     }
     setIsExporting(true)
@@ -284,136 +384,189 @@ export default function DocumentEditorPage() {
         dictionary: mergedDictionary,
       })
     } catch {
-      setExportError('שגיאה בייצוא לוורד. נסי שוב.')
+      setExportError('שגיאה בייצוא. נסי שוב.')
     } finally {
       setIsExporting(false)
     }
   }
 
+  function handlePrev() {
+    const idx = TABS.findIndex((t) => t.id === activeTab)
+    if (idx > 0) setActiveTab(TABS[idx - 1].id)
+  }
+
+  function handleNext() {
+    const idx = TABS.findIndex((t) => t.id === activeTab)
+    if (idx < TABS.length - 1) setActiveTab(TABS[idx + 1].id)
+  }
+
   if (isLoading) {
     return (
-      <main className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
-        <div className="max-w-7xl mx-auto px-6 py-16 text-center text-slate-500">
-          טוען מסמך...
-        </div>
+      <main
+        className="min-h-screen flex items-center justify-center"
+        style={{ backgroundColor: 'var(--bg-secondary)' }}
+      >
+        <div style={{ color: 'var(--text-muted)' }}>טוען מסמך...</div>
       </main>
     )
   }
 
   if (error || !document) {
     return (
-      <main className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
-        <div className="max-w-3xl mx-auto px-6 py-16 text-center">
-          <p className="text-slate-700 text-lg font-medium mb-4">
+      <main
+        className="min-h-screen flex items-center justify-center"
+        style={{ backgroundColor: 'var(--bg-secondary)' }}
+      >
+        <div className="text-center">
+          <p style={{ color: 'var(--text-primary)', marginBottom: 12 }}>
             {error ?? 'מסמך לא נמצא'}
           </p>
-          <Link
+          <a
             href={`/clients/${clientId}`}
-            className="text-blue-600 hover:text-blue-700 text-sm"
+            style={{ color: 'var(--color-primary)', fontSize: 13 }}
           >
             ← חזרה לתיק
-          </Link>
+          </a>
         </div>
       </main>
     )
   }
 
-  const actorSummaries = document.actors.map((a) => {
-    const linkedPersons = a.personIds
-      .map((id) => persons.find((p) => p.id === id))
-      .filter((p): p is Person => p !== undefined)
-    const names = linkedPersons
-      .map((p) => `${p.firstName} ${p.lastName}`)
-      .join(' ו-')
-    const genderHint = describeGender(linkedPersons)
-    return {
-      role: a.role,
-      label: ACTOR_ROLE_LABELS[a.role] ?? a.role,
-      names: names || '(לא נבחר)',
-      genderHint,
+  const partiesSummary = (() => {
+    const lines: string[] = []
+    if (principal) {
+      lines.push(
+        `הממנה: ${principal.firstName} ${principal.lastName}, ת.ז. ${principal.idNumber}`
+      )
+    } else {
+      lines.push('הממנה: [טרם נבחר]')
     }
-  })
+    if (attorneys.length > 0) {
+      const role =
+        attorneys.length > 1
+          ? 'מיופי הכוח'
+          : attorneys[0].gender === 'female'
+            ? 'מיופת הכוח'
+            : 'מיופה הכוח'
+      const names = attorneys
+        .map((a) => `${a.firstName} ${a.lastName} (ת.ז. ${a.idNumber})`)
+        .join(', ')
+      lines.push(`${role}: ${names}`)
+    } else {
+      lines.push('מיופי הכוח: [טרם נבחרו]')
+    }
+    return lines.join('\n')
+  })()
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
-      <header className="bg-white border-b border-slate-200">
-        <div className="max-w-7xl mx-auto px-6 py-3 flex items-center justify-between gap-4">
-          <div className="flex-1 min-w-0">
-            <h1 className="text-lg font-bold text-slate-800 truncate">
-              {document.title}
-            </h1>
-            <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500 mt-0.5">
-              {actorSummaries.map((a) => (
-                <span key={a.role}>
-                  <strong className="text-slate-700">{a.label}:</strong>{' '}
-                  {a.names}
-                  {a.genderHint && (
-                    <span className="text-slate-400"> ({a.genderHint})</span>
-                  )}
-                </span>
-              ))}
-            </div>
-          </div>
-          <div className="flex items-center gap-3 flex-shrink-0">
-            <SaveIndicator status={saveStatus} />
-            <button
-              type="button"
-              onClick={handleExport}
-              disabled={isExporting || document.sections.length === 0}
-              className="px-4 py-1.5 text-sm bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-300 disabled:cursor-not-allowed text-white font-medium rounded-lg transition-colors"
-            >
-              {isExporting ? 'מייצא...' : 'ייצוא לוורד'}
-            </button>
-            <Link
-              href={`/clients/${clientId}`}
-              className="text-sm text-slate-600 hover:text-slate-900"
-            >
-              ← לתיק
-            </Link>
-          </div>
-        </div>
-        <div className="max-w-7xl mx-auto px-6 pb-2 text-xs text-slate-400">
-          לעריכת מגדר של ממנה או מיופה — עברו לתיק הלקוח וערכו את האדם המתאים.
-        </div>
-        {exportError && (
-          <div className="max-w-7xl mx-auto px-6 pb-2">
-            <div
-              role="alert"
-              className="p-2 bg-red-50 border border-red-200 text-red-700 rounded-lg text-xs"
-            >
-              {exportError}
-            </div>
-          </div>
-        )}
-      </header>
+    <main
+      className="min-h-screen flex flex-col"
+      style={{ backgroundColor: 'var(--bg-secondary)' }}
+    >
+      <TitleBar />
+      <DocumentHeader
+        documentType="ייפוי כוח מתמשך"
+        documentName={document.title}
+        clientName={client?.displayName ?? '—'}
+        openedAt={document.createdAt}
+        onExport={handleExport}
+        isExporting={isExporting}
+        canExport={document.sections.length > 0}
+      />
+      <StepTabs activeId={activeTab} onChange={setActiveTab} />
 
-      <div className="max-w-7xl mx-auto px-6 py-6">
-        <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr_1fr] gap-4 h-[calc(100vh-180px)]">
-          <SectionLibrary
-            sections={availableSections}
-            selectedTemplateIds={selectedTemplateIds}
-            onAdd={handleAdd}
-          />
-          <SelectedSections
-            sections={document.sections}
-            onRemove={handleRemove}
-            onMoveUp={(id) => handleMove(id, -1)}
-            onMoveDown={(id) => handleMove(id, 1)}
-          />
-          <DocumentPreview title={document.title} rendered={rendered} />
+      {exportError && (
+        <div
+          className="px-8 py-2"
+          style={{
+            backgroundColor: '#FEE2E2',
+            color: '#991B1B',
+            fontSize: 12,
+          }}
+          role="alert"
+        >
+          {exportError}
         </div>
+      )}
+
+      <div
+        className="flex-1 grid overflow-hidden"
+        style={{ gridTemplateColumns: '30% 70%' }}
+      >
+        <FormPanel
+          stepTitle={STEP_META[activeTab].title}
+          stepDescription={STEP_META[activeTab].description}
+        >
+          {activeTab === 'principal' && (
+            <PrincipalTab
+              clientId={clientId}
+              selectedIds={principalIds}
+              onChange={handlePrincipalChange}
+              onPersonCreated={handlePersonCreated}
+              attorneyIds={attorneyIds}
+              principal={principal}
+            />
+          )}
+          {activeTab === 'attorneys' && (
+            <AttorneysTab
+              clientId={clientId}
+              selectedIds={attorneyIds}
+              onChange={handleAttorneysChange}
+              onPersonCreated={handlePersonCreated}
+              principalIds={principalIds}
+              attorneys={attorneys}
+            />
+          )}
+          {activeTab === 'powers' && (
+            <PowersTab
+              selectedDomains={allowedDomains}
+              onToggle={handleDomainToggle}
+            />
+          )}
+          {activeTab === 'directives' && (
+            <DirectivesTab
+              availableSections={availableSections}
+              selectedSections={document.sections}
+              onAdd={handleAddSection}
+              onRemove={handleRemoveSection}
+              onMoveUp={(id) => handleMoveSection(id, -1)}
+              onMoveDown={(id) => handleMoveSection(id, 1)}
+              allowedDomains={allowedDomains}
+            />
+          )}
+          {activeTab === 'signature' && (
+            <SignatureTab
+              status={document.status}
+              onStatusChange={handleStatusChange}
+              principalName={
+                principal ? `${principal.firstName} ${principal.lastName}` : null
+              }
+              attorneyNames={attorneys.map(
+                (a) => `${a.firstName} ${a.lastName}`
+              )}
+              sectionsCount={document.sections.length}
+              onExport={handleExport}
+              isExporting={isExporting}
+            />
+          )}
+
+          <div style={{ marginTop: 24 }}>
+            <StepNavigation
+              onPrev={handlePrev}
+              onNext={handleNext}
+              prevDisabled={activeTab === 'principal'}
+              nextDisabled={activeTab === 'signature'}
+            />
+          </div>
+        </FormPanel>
+
+        <DocumentCanvas
+          documentTitle={document.title}
+          rendered={rendered}
+          partiesSummary={partiesSummary}
+          saveStatus={saveStatus}
+        />
       </div>
     </main>
   )
-}
-
-function SaveIndicator({ status }: { status: SaveStatus }) {
-  if (status === 'idle') return null
-  const config = {
-    saving: { text: 'שומר...', className: 'text-slate-500' },
-    saved: { text: 'נשמר ✓', className: 'text-emerald-600' },
-    error: { text: 'שגיאת שמירה', className: 'text-red-600' },
-  } as const
-  const { text, className } = config[status]
-  return <span className={`text-xs font-medium ${className}`}>{text}</span>
 }
