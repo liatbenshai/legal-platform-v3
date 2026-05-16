@@ -6,10 +6,16 @@ import { useParams } from 'next/navigation'
 import { DocumentPreview } from '@/components/editor/DocumentPreview'
 import { SectionLibrary } from '@/components/editor/SectionLibrary'
 import { SelectedSections } from '@/components/editor/SelectedSections'
+import {
+  getUserDictionaryEntries,
+  mergeDictionaries,
+  type UserDictionaryEntry,
+} from '@/lib/db/dictionary'
 import { getDocument, updateDocument } from '@/lib/db/documents'
 import { getPersons } from '@/lib/db/persons'
 import { createClient } from '@/lib/db/supabase'
 import { getTemplates } from '@/lib/db/templates'
+import { dictionary as staticDictionary } from '@/lib/engine/dictionary'
 import { renderDocument } from '@/lib/engine/renderer'
 import { sectionLibrary, type LibrarySection } from '@/lib/sections/library'
 import { useUser } from '@/lib/hooks/useUser'
@@ -99,6 +105,7 @@ export default function DocumentEditorPage() {
   const [document, setDocument] = useState<Document | null>(null)
   const [persons, setPersons] = useState<Person[]>([])
   const [userSections, setUserSections] = useState<LibrarySection[]>([])
+  const [userDictionary, setUserDictionary] = useState<UserDictionaryEntry[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle')
@@ -142,10 +149,23 @@ export default function DocumentEditorPage() {
       .catch(() => {
         // user sections are optional; failure here doesn't block the editor
       })
+    getUserDictionaryEntries(supabase, user.id)
+      .then((entries) => {
+        if (cancelled) return
+        setUserDictionary(entries)
+      })
+      .catch(() => {
+        // user dictionary is optional; static dictionary is used as fallback
+      })
     return () => {
       cancelled = true
     }
   }, [supabase, user])
+
+  const mergedDictionary = useMemo(
+    () => mergeDictionaries(staticDictionary, userDictionary),
+    [userDictionary]
+  )
 
   const scheduleSave = useCallback(
     (next: Document) => {
@@ -180,8 +200,8 @@ export default function DocumentEditorPage() {
 
   const rendered = useMemo(() => {
     if (!document) return []
-    return renderDocument({ document, persons })
-  }, [document, persons])
+    return renderDocument({ document, persons, dictionary: mergedDictionary })
+  }, [document, persons, mergedDictionary])
 
   const selectedTemplateIds = useMemo(
     () =>

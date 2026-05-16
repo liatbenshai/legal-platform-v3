@@ -156,6 +156,12 @@ export default function LibraryPage() {
           <h1 className="text-xl font-bold text-slate-800">ספריית סעיפים</h1>
           <div className="flex items-center gap-4">
             <Link
+              href="/library/dictionary"
+              className="text-sm text-blue-600 hover:text-blue-800"
+            >
+              מילון הטיות ←
+            </Link>
+            <Link
               href="/dashboard"
               className="text-sm text-slate-600 hover:text-slate-900"
             >

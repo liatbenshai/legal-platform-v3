@@ -1,9 +1,10 @@
 import type { Document, Person, SectionLevel } from '@/lib/types'
-import { dictionary } from './dictionary'
+import { dictionary, type InflectedWord } from './dictionary'
 
 export interface RenderContext {
   document: Document
   persons: Person[]
+  dictionary?: Record<string, InflectedWord>
 }
 
 export interface RenderedSection {
@@ -65,7 +66,8 @@ function resolvePlaceholder(expr: string, ctx: RenderContext): string {
       return persons.map((p) => p.email ?? '').join(', ')
   }
 
-  const word = dictionary[property]
+  const dict = ctx.dictionary ?? dictionary
+  const word = dict[property]
   if (!word) return property
 
   if (isPlural) {
