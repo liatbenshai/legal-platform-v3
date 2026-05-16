@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { ClientCard } from '@/components/clients/ClientCard'
 import { NewClientModal } from '@/components/clients/NewClientModal'
@@ -45,39 +45,34 @@ export default function ClientsPage() {
   const [error, setError] = useState<string | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
 
+  const loadClients = useCallback(async () => {
+    if (!user) return
+    setIsLoading(true)
+    setError(null)
+    const supabase = createClient()
+    const { data, error: queryError } = await supabase
+      .from('clients')
+      .select('*, documents(count)')
+      .eq('user_id', user.id)
+      .order('updated_at', { ascending: false })
+    if (queryError) {
+      setError('שגיאה בטעינת הלקוחות. נסה/י לרענן את הדף.')
+      setIsLoading(false)
+      return
+    }
+    const mapped = ((data ?? []) as ClientRowWithDocs[]).map(mapRow)
+    setClients(mapped)
+    setIsLoading(false)
+  }, [user])
+
   useEffect(() => {
     if (userLoading) return
     if (!user) {
       setIsLoading(false)
       return
     }
-
-    let cancelled = false
-    setIsLoading(true)
-    setError(null)
-
-    const supabase = createClient()
-    supabase
-      .from('clients')
-      .select('*, documents(count)')
-      .eq('user_id', user.id)
-      .order('updated_at', { ascending: false })
-      .then(({ data, error: queryError }) => {
-        if (cancelled) return
-        if (queryError) {
-          setError('שגיאה בטעינת הלקוחות. נסה/י לרענן את הדף.')
-          setIsLoading(false)
-          return
-        }
-        const mapped = ((data ?? []) as ClientRowWithDocs[]).map(mapRow)
-        setClients(mapped)
-        setIsLoading(false)
-      })
-
-    return () => {
-      cancelled = true
-    }
-  }, [user, userLoading])
+    void loadClients()
+  }, [user, userLoading, loadClients])
 
   const filtered = useMemo(() => {
     const term = searchTerm.trim().toLowerCase()
@@ -159,7 +154,11 @@ export default function ClientsPage() {
 
       <NewClientModal
         open={isModalOpen}
+        userId={user?.id ?? null}
         onClose={() => setIsModalOpen(false)}
+        onSaved={() => {
+          void loadClients()
+        }}
       />
     </main>
   )
