@@ -45,7 +45,13 @@ export default async function DashboardPage() {
               href="/clients"
               className="inline-flex items-center px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors"
             >
-              צא ליצירת לקוח חדש
+              תיקי לקוחות
+            </Link>
+            <Link
+              href="/library"
+              className="inline-flex items-center px-6 py-3 bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 font-medium rounded-lg transition-colors"
+            >
+              ספריית סעיפים
             </Link>
           </div>
         </div>

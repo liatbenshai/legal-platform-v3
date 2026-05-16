@@ -9,15 +9,34 @@ import { SelectedSections } from '@/components/editor/SelectedSections'
 import { getDocument, updateDocument } from '@/lib/db/documents'
 import { getPersons } from '@/lib/db/persons'
 import { createClient } from '@/lib/db/supabase'
+import { getTemplates } from '@/lib/db/templates'
 import { renderDocument } from '@/lib/engine/renderer'
 import { sectionLibrary, type LibrarySection } from '@/lib/sections/library'
+import { useUser } from '@/lib/hooks/useUser'
 import type {
   ActorRole,
   Document,
   DocumentSection,
   DocumentType,
   Person,
+  SectionTemplate,
 } from '@/lib/types'
+
+function templateToLibrarySection(t: SectionTemplate): LibrarySection {
+  return {
+    sectionId: t.id,
+    category: t.category,
+    documentTypes: t.documentTypes,
+    title: t.title,
+    description: t.description,
+    variants: t.variants,
+    requiredActors: t.requiredActors,
+    legalBasis: t.legalBasis,
+    isRequired: t.isRequired,
+    conflictsWith: t.conflictsWith,
+    tags: t.tags,
+  }
+}
 
 const ALL_DOMAINS: DocumentType[] = [
   'poa-property',
@@ -71,6 +90,7 @@ function makeNewSection(
 
 export default function DocumentEditorPage() {
   const params = useParams<{ id: string; docId: string }>()
+  const { user } = useUser()
   const clientId = params.id
   const docId = params.docId
 
@@ -78,6 +98,7 @@ export default function DocumentEditorPage() {
 
   const [document, setDocument] = useState<Document | null>(null)
   const [persons, setPersons] = useState<Person[]>([])
+  const [userSections, setUserSections] = useState<LibrarySection[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle')
@@ -109,6 +130,22 @@ export default function DocumentEditorPage() {
       cancelled = true
     }
   }, [supabase, docId, clientId])
+
+  useEffect(() => {
+    if (!user) return
+    let cancelled = false
+    getTemplates(supabase, { isSystem: false, userId: user.id })
+      .then((templates) => {
+        if (cancelled) return
+        setUserSections(templates.map(templateToLibrarySection))
+      })
+      .catch(() => {
+        // user sections are optional; failure here doesn't block the editor
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [supabase, user])
 
   const scheduleSave = useCallback(
     (next: Document) => {
@@ -163,10 +200,10 @@ export default function DocumentEditorPage() {
 
   const availableSections = useMemo(
     () =>
-      sectionLibrary.filter((s) =>
+      [...sectionLibrary, ...userSections].filter((s) =>
         s.documentTypes.some((t) => allowedDomains.includes(t))
       ),
-    [allowedDomains]
+    [allowedDomains, userSections]
   )
 
   function applyChange(updater: (doc: Document) => Document) {
