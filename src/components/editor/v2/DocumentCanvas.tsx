@@ -1,5 +1,6 @@
 'use client'
 
+import { Fragment } from 'react'
 import type { RenderedSection } from '@/lib/engine/renderer'
 
 interface DocumentCanvasProps {
@@ -8,10 +9,64 @@ interface DocumentCanvasProps {
   partiesSummary?: string
   pageInfo?: string
   saveStatus?: 'saving' | 'saved' | 'error' | 'idle'
-  wordsCount?: number
 }
 
-function getSaveText(status: DocumentCanvasProps['saveStatus']): React.ReactNode {
+function parseInlineBold(text: string): React.ReactNode[] {
+  const segments = text.split(/(\*\*[^*]+\*\*)/g).filter((s) => s.length > 0)
+  return segments.map((segment, i) => {
+    const boldMatch = segment.match(/^\*\*([^*]+)\*\*$/)
+    if (boldMatch) {
+      return <strong key={i}>{boldMatch[1]}</strong>
+    }
+    return <Fragment key={i}>{segment}</Fragment>
+  })
+}
+
+function renderContentParagraphs(content: string): React.ReactNode[] {
+  const lines = content.split('\n')
+  const elements: React.ReactNode[] = []
+  let idx = 0
+  for (const rawLine of lines) {
+    const line = rawLine.replace(/\r$/, '')
+    if (!line.trim()) continue
+    const isSubheading = /^\*\*[^*]+\*\*$/.test(line.trim())
+    if (isSubheading) {
+      const text = line.trim().replace(/^\*\*|\*\*$/g, '')
+      elements.push(
+        <h4
+          key={idx}
+          style={{
+            fontFamily: 'var(--font-frank-ruhl), Georgia, serif',
+            fontSize: 14,
+            fontWeight: 500,
+            color: 'var(--color-primary)',
+            margin: '14px 0 8px',
+          }}
+        >
+          {text}
+        </h4>
+      )
+    } else {
+      elements.push(
+        <p
+          key={idx}
+          style={{
+            margin: '0 0 14px',
+            textAlign: 'right',
+          }}
+        >
+          {parseInlineBold(line)}
+        </p>
+      )
+    }
+    idx += 1
+  }
+  return elements
+}
+
+function getSaveText(
+  status: DocumentCanvasProps['saveStatus']
+): React.ReactNode {
   if (!status || status === 'idle') {
     return (
       <>
@@ -43,9 +98,7 @@ function getSaveText(status: DocumentCanvasProps['saveStatus']): React.ReactNode
       </>
     )
   }
-  return (
-    <span style={{ color: '#DC2626' }}>שגיאת שמירה — נסי שוב</span>
-  )
+  return <span style={{ color: '#DC2626' }}>שגיאת שמירה — נסי שוב</span>
 }
 
 export function DocumentCanvas({
@@ -54,14 +107,13 @@ export function DocumentCanvas({
   partiesSummary,
   pageInfo = 'תצוגה מקדימה',
   saveStatus,
-  wordsCount,
 }: DocumentCanvasProps) {
   return (
     <div
       className="relative h-full overflow-y-auto"
       style={{
         backgroundColor: '#fff',
-        padding: '32px 36px 36px',
+        padding: '32px 48px 36px',
       }}
     >
       <div
@@ -77,7 +129,7 @@ export function DocumentCanvas({
         {pageInfo}
       </div>
 
-      <div className="text-center" style={{ marginBottom: 28 }}>
+      <div className="text-center" style={{ marginBottom: 32 }}>
         <h1
           className="doc-title"
           style={{
@@ -98,43 +150,52 @@ export function DocumentCanvas({
             margin: '12px auto',
           }}
         />
-        <div
-          style={{
-            fontSize: 12,
-            color: 'var(--text-secondary)',
-          }}
-        >
+        <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
           לפי חוק הכשרות המשפטית והאפוטרופסות, התשכ&quot;ב-1962
         </div>
       </div>
 
-      <div className="doc-body" style={{ maxWidth: 580, margin: '0 auto' }}>
+      <div className="doc-body" style={{ maxWidth: 720, margin: '0 auto' }}>
         {partiesSummary && (
-          <p style={{ margin: '0 0 24px', whiteSpace: 'pre-wrap' }}>
-            {partiesSummary}
-          </p>
+          <div
+            style={{
+              marginBottom: 28,
+              paddingBottom: 20,
+              borderBottom: '1px solid var(--border-default)',
+            }}
+          >
+            {partiesSummary.split('\n').map((line, i) => (
+              <p key={i} style={{ margin: '0 0 8px', textAlign: 'right' }}>
+                {line}
+              </p>
+            ))}
+          </div>
         )}
 
         {rendered.length === 0 ? (
-          <p className="doc-placeholder" style={{ margin: '0 0 16px' }}>
+          <p
+            className="doc-placeholder"
+            style={{ margin: '0 0 16px', textAlign: 'right' }}
+          >
             [בחרי סעיפים בלשונית &quot;הנחיות מקדימות&quot; כדי שיופיעו כאן]
           </p>
         ) : (
           rendered.map((section, idx) => (
-            <div key={section.id} style={{ marginBottom: 18 }}>
+            <section key={section.id} style={{ marginBottom: 24 }}>
               <h3
                 style={{
                   fontFamily: 'var(--font-frank-ruhl), Georgia, serif',
-                  fontSize: 16,
+                  fontSize: 17,
                   fontWeight: 500,
                   color: 'var(--color-primary)',
-                  margin: '0 0 8px',
+                  margin: '0 0 12px',
+                  textAlign: 'right',
                 }}
               >
                 {idx + 1}. {section.title}
               </h3>
-              <div style={{ whiteSpace: 'pre-wrap' }}>{section.content}</div>
-            </div>
+              {renderContentParagraphs(section.content)}
+            </section>
           ))
         )}
       </div>
@@ -150,10 +211,7 @@ export function DocumentCanvas({
         }}
       >
         <div className="flex items-center">{getSaveText(saveStatus)}</div>
-        <div>
-          {typeof wordsCount === 'number' && `${wordsCount} מילים · `}
-          בהתאמה לטופס משרד המשפטים
-        </div>
+        <div>בהתאמה לטופס משרד המשפטים</div>
       </div>
     </div>
   )

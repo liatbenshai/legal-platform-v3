@@ -7,6 +7,7 @@ import {
   TextRun,
 } from 'docx'
 import { saveAs } from 'file-saver'
+import JSZip from 'jszip'
 import {
   dictionary as staticDictionary,
   type InflectedWord,
@@ -347,5 +348,40 @@ export async function exportToWord(opts: ExportOptions): Promise<void> {
   })
 
   const blob = await Packer.toBlob(docx)
-  saveAs(blob, safeFilename(opts.document.title))
+  const patched = await injectSectionBidi(blob)
+  saveAs(patched, safeFilename(opts.document.title))
+}
+
+/**
+ * The docx package does not expose section-level `<w:bidi/>` via its
+ * typed API, but without it Word treats the section as LTR even though
+ * each paragraph is bidi. We unzip the .docx, modify word/document.xml
+ * to inject `<w:bidi/>` into every `<w:sectPr>` block that doesn't
+ * already have one, then re-zip and return the new blob.
+ */
+async function injectSectionBidi(blob: Blob): Promise<Blob> {
+  const buffer = await blob.arrayBuffer()
+  const zip = await JSZip.loadAsync(buffer)
+  const documentEntry = zip.file('word/document.xml')
+  if (!documentEntry) return blob
+
+  const xml = await documentEntry.async('string')
+  const patchedXml = xml.replace(
+    /<w:sectPr\b([^>]*)>([\s\S]*?)<\/w:sectPr>/g,
+    (_match, attrs: string, inner: string) => {
+      if (/<w:bidi\b/.test(inner)) {
+        return `<w:sectPr${attrs}>${inner}</w:sectPr>`
+      }
+      return `<w:sectPr${attrs}><w:bidi/>${inner}</w:sectPr>`
+    }
+  )
+
+  if (patchedXml === xml) return blob
+
+  zip.file('word/document.xml', patchedXml)
+  return zip.generateAsync({
+    type: 'blob',
+    mimeType:
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  })
 }
