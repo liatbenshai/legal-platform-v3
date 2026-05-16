@@ -17,19 +17,52 @@ export function ClientCard({ client, documentCount }: ClientCardProps) {
   return (
     <Link
       href={`/clients/${client.id}`}
-      className="block bg-white rounded-2xl shadow-sm border border-slate-200 p-6 hover:shadow-md hover:border-blue-300 transition-all"
+      style={{
+        display: 'block',
+        backgroundColor: '#fff',
+        border: '1px solid var(--border-default)',
+        borderRadius: 8,
+        padding: 20,
+        textDecoration: 'none',
+        transition: 'border-color 120ms',
+      }}
+      className="hover:border-blue-400"
     >
-      <h3 className="text-lg font-bold text-slate-800 mb-3 truncate">
+      <h3
+        className="doc-title truncate"
+        style={{
+          fontSize: 17,
+          fontWeight: 500,
+          color: 'var(--color-primary)',
+          margin: '0 0 10px',
+        }}
+      >
         {client.displayName}
       </h3>
-      <div className="flex items-center justify-between text-sm text-slate-600">
+      <div
+        className="flex items-center justify-between"
+        style={{ fontSize: 12, color: 'var(--text-secondary)' }}
+      >
         <span>
+          <i
+            className="ti ti-files"
+            style={{ marginLeft: 4, fontSize: 13 }}
+          />
           {documentCount} {documentCount === 1 ? 'מסמך' : 'מסמכים'}
         </span>
-        <span>עודכן: {formatDate(client.updatedAt)}</span>
+        <span>עודכן {formatDate(client.updatedAt)}</span>
       </div>
       {client.notes && (
-        <p className="mt-3 text-sm text-slate-500 line-clamp-2">
+        <p
+          className="line-clamp-2"
+          style={{
+            marginTop: 12,
+            paddingTop: 12,
+            borderTop: '1px solid var(--border-default)',
+            fontSize: 12,
+            color: 'var(--text-muted)',
+          }}
+        >
           {client.notes}
         </p>
       )}

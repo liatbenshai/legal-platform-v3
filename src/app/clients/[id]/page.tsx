@@ -40,10 +40,10 @@ const STATUS_LABELS: Record<DocumentStatus, string> = {
   signed: 'חתום',
 }
 
-const STATUS_STYLES: Record<DocumentStatus, string> = {
-  draft: 'bg-slate-100 text-slate-700',
-  review: 'bg-amber-100 text-amber-800',
-  signed: 'bg-emerald-100 text-emerald-800',
+const STATUS_STYLES: Record<DocumentStatus, { bg: string; color: string }> = {
+  draft: { bg: '#F3F4F6', color: '#6B7280' },
+  review: { bg: '#FEF3C7', color: '#92660A' },
+  signed: { bg: '#DCFCE7', color: '#15803D' },
 }
 
 function formatDate(d: Date): string {
@@ -151,7 +151,12 @@ export default function ClientDetailPage() {
     }
     setIsSavingClient(true)
     try {
-      const updated = await updateClient(supabase, client.id, trimmed, client.notes)
+      const updated = await updateClient(
+        supabase,
+        client.id,
+        trimmed,
+        client.notes
+      )
       setClient(updated)
       setIsEditingName(false)
     } catch {
@@ -215,8 +220,16 @@ export default function ClientDetailPage() {
 
   if (isLoading) {
     return (
-      <main className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
-        <div className="max-w-5xl mx-auto px-6 py-16 text-center text-slate-500">
+      <main
+        style={{
+          minHeight: '100vh',
+          backgroundColor: 'var(--bg-secondary)',
+        }}
+      >
+        <div
+          className="max-w-5xl mx-auto px-6 py-16 text-center"
+          style={{ color: 'var(--text-muted)', fontSize: 13 }}
+        >
           טוען תיק לקוח...
         </div>
       </main>
@@ -225,14 +238,33 @@ export default function ClientDetailPage() {
 
   if (!client) {
     return (
-      <main className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
+      <main
+        style={{
+          minHeight: '100vh',
+          backgroundColor: 'var(--bg-secondary)',
+        }}
+      >
         <div className="max-w-5xl mx-auto px-6 py-16 text-center">
-          <p className="text-slate-700 text-lg font-medium">תיק לא נמצא</p>
+          <p
+            className="doc-title"
+            style={{
+              fontSize: 18,
+              fontWeight: 500,
+              color: 'var(--text-primary)',
+              margin: '0 0 12px',
+            }}
+          >
+            תיק לא נמצא
+          </p>
           <Link
             href="/clients"
-            className="text-blue-600 hover:text-blue-700 text-sm mt-3 inline-block"
+            style={{
+              fontSize: 13,
+              color: 'var(--color-primary)',
+              textDecoration: 'none',
+            }}
           >
-            ← חזרה לרשימת הלקוחות
+            → חזרה לרשימת הלקוחות
           </Link>
         </div>
       </main>
@@ -242,17 +274,40 @@ export default function ClientDetailPage() {
   const personToDelete = persons.find((p) => p.id === confirmDeletePersonId)
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
-      <header className="bg-white border-b border-slate-200">
+    <main
+      style={{
+        minHeight: '100vh',
+        backgroundColor: 'var(--bg-secondary)',
+      }}
+    >
+      <header
+        style={{
+          backgroundColor: '#fff',
+          borderBottom: '1px solid var(--border-default)',
+        }}
+      >
         <div className="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between">
-          <h1 className="text-xl font-bold text-slate-800 truncate">
+          <h1
+            className="doc-title truncate"
+            style={{
+              fontSize: 20,
+              fontWeight: 500,
+              color: 'var(--color-primary)',
+              margin: 0,
+            }}
+          >
             {client.displayName}
           </h1>
           <Link
             href="/clients"
-            className="text-sm text-slate-600 hover:text-slate-900 whitespace-nowrap"
+            style={{
+              fontSize: 13,
+              color: 'var(--text-secondary)',
+              textDecoration: 'none',
+              whiteSpace: 'nowrap',
+            }}
           >
-            ← חזרה לרשימת הלקוחות
+            → לרשימת הלקוחות
           </Link>
         </div>
       </header>
@@ -261,13 +316,27 @@ export default function ClientDetailPage() {
         {error && (
           <div
             role="alert"
-            className="p-4 bg-red-50 border border-red-200 text-red-700 rounded-lg"
+            style={{
+              padding: '12px 16px',
+              backgroundColor: '#FEE2E2',
+              border: '0.5px solid #FCA5A5',
+              color: '#991B1B',
+              borderRadius: 4,
+              fontSize: 13,
+            }}
           >
             {error}
           </div>
         )}
 
-        <section className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+        <section
+          style={{
+            backgroundColor: '#fff',
+            border: '1px solid var(--border-default)',
+            borderRadius: 8,
+            padding: 24,
+          }}
+        >
           <div className="flex items-start justify-between gap-4 mb-4">
             <div className="flex-1 min-w-0">
               {isEditingName ? (
@@ -282,7 +351,16 @@ export default function ClientDetailPage() {
                   }}
                   disabled={isSavingClient}
                   autoFocus
-                  className="text-2xl font-bold text-slate-800 w-full px-2 py-1 border border-blue-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="doc-title w-full"
+                  style={{
+                    fontSize: 22,
+                    fontWeight: 500,
+                    color: 'var(--color-primary)',
+                    padding: '6px 10px',
+                    border: '0.5px solid var(--color-primary)',
+                    borderRadius: 4,
+                    backgroundColor: 'var(--color-primary-light)',
+                  }}
                 />
               ) : (
                 <button
@@ -291,12 +369,30 @@ export default function ClientDetailPage() {
                     setDraftName(client.displayName)
                     setIsEditingName(true)
                   }}
-                  className="text-2xl font-bold text-slate-800 hover:text-blue-700 hover:bg-slate-50 rounded-lg px-2 py-1 -mx-2 transition-colors text-right"
+                  className="doc-title text-right"
+                  style={{
+                    fontSize: 22,
+                    fontWeight: 500,
+                    color: 'var(--color-primary)',
+                    padding: '6px 10px',
+                    margin: '-6px -10px',
+                    borderRadius: 4,
+                    border: 'none',
+                    backgroundColor: 'transparent',
+                    cursor: 'pointer',
+                  }}
                 >
                   {client.displayName}
                 </button>
               )}
-              <p className="text-xs text-slate-400 mt-1 px-2">
+              <p
+                style={{
+                  fontSize: 11,
+                  color: 'var(--text-muted)',
+                  marginTop: 4,
+                  paddingRight: 10,
+                }}
+              >
                 לחיצה על השם תאפשר עריכה
               </p>
             </div>
@@ -304,14 +400,30 @@ export default function ClientDetailPage() {
             <button
               type="button"
               onClick={() => setConfirmDeleteClientOpen(true)}
-              className="text-sm text-red-600 hover:text-red-800 hover:bg-red-50 px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap"
+              style={{
+                fontSize: 12,
+                color: '#DC2626',
+                backgroundColor: 'transparent',
+                border: '0.5px solid #FCA5A5',
+                padding: '6px 12px',
+                borderRadius: 4,
+                whiteSpace: 'nowrap',
+              }}
             >
               מחק לקוח
             </button>
           </div>
 
           <div>
-            <h2 className="text-sm font-medium text-slate-700 mb-1">הערות</h2>
+            <div
+              style={{
+                fontSize: 12,
+                color: 'var(--text-secondary)',
+                marginBottom: 6,
+              }}
+            >
+              הערות
+            </div>
             {isEditingNotes ? (
               <div>
                 <textarea
@@ -320,14 +432,29 @@ export default function ClientDetailPage() {
                   disabled={isSavingClient}
                   rows={3}
                   autoFocus
-                  className="w-full px-3 py-2 border border-blue-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                  style={{
+                    width: '100%',
+                    padding: '9px 12px',
+                    fontSize: 14,
+                    border: '0.5px solid var(--color-primary)',
+                    borderRadius: 4,
+                    backgroundColor: 'var(--color-primary-light)',
+                    resize: 'none',
+                  }}
                 />
                 <div className="flex gap-2 mt-2 justify-end">
                   <button
                     type="button"
                     onClick={() => setIsEditingNotes(false)}
                     disabled={isSavingClient}
-                    className="px-3 py-1 text-sm border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50"
+                    style={{
+                      fontSize: 12,
+                      padding: '6px 12px',
+                      backgroundColor: 'transparent',
+                      border: '0.5px solid var(--border-hover)',
+                      borderRadius: 4,
+                      color: 'var(--text-secondary)',
+                    }}
                   >
                     ביטול
                   </button>
@@ -335,7 +462,15 @@ export default function ClientDetailPage() {
                     type="button"
                     onClick={handleSaveNotes}
                     disabled={isSavingClient}
-                    className="px-3 py-1 text-sm bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white rounded-lg"
+                    style={{
+                      fontSize: 12,
+                      padding: '6px 12px',
+                      backgroundColor: 'var(--color-primary)',
+                      color: '#fff',
+                      border: 'none',
+                      borderRadius: 4,
+                      fontWeight: 500,
+                    }}
                   >
                     שמור
                   </button>
@@ -348,45 +483,81 @@ export default function ClientDetailPage() {
                   setDraftNotes(client.notes ?? '')
                   setIsEditingNotes(true)
                 }}
-                className="w-full text-right px-3 py-2 text-slate-600 hover:bg-slate-50 rounded-lg transition-colors min-h-[2.5rem]"
+                className="w-full text-right"
+                style={{
+                  padding: '9px 12px',
+                  fontSize: 14,
+                  color: client.notes
+                    ? 'var(--text-primary)'
+                    : 'var(--text-muted)',
+                  backgroundColor: 'transparent',
+                  border: '0.5px dashed var(--border-default)',
+                  borderRadius: 4,
+                  minHeight: 40,
+                  fontStyle: client.notes ? 'normal' : 'italic',
+                }}
               >
-                {client.notes || (
-                  <span className="text-slate-400">
-                    אין הערות — לחץ/י כדי להוסיף
-                  </span>
-                )}
+                {client.notes || 'אין הערות — לחצי כדי להוסיף'}
               </button>
             )}
           </div>
         </section>
 
-        <section className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-          <div className="flex border-b border-slate-200">
-            <button
-              type="button"
-              onClick={() => setActiveTab('persons')}
-              className={`flex-1 px-6 py-3 text-sm font-medium transition-colors ${
-                activeTab === 'persons'
-                  ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-              }`}
-            >
-              אנשים בתיק ({persons.length})
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab('documents')}
-              className={`flex-1 px-6 py-3 text-sm font-medium transition-colors ${
-                activeTab === 'documents'
-                  ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-              }`}
-            >
-              מסמכים ({documents.length})
-            </button>
+        <section
+          style={{
+            backgroundColor: '#fff',
+            border: '1px solid var(--border-default)',
+            borderRadius: 8,
+            overflow: 'hidden',
+          }}
+        >
+          <div
+            className="flex"
+            style={{
+              backgroundColor: 'var(--bg-secondary)',
+              borderBottom: '1px solid var(--border-default)',
+              padding: '0 24px',
+              gap: 28,
+            }}
+          >
+            {(['persons', 'documents'] as const).map((tabId) => {
+              const isActive = activeTab === tabId
+              const label = tabId === 'persons' ? 'אנשים בתיק' : 'מסמכים'
+              const count = tabId === 'persons' ? persons.length : documents.length
+              return (
+                <button
+                  key={tabId}
+                  type="button"
+                  onClick={() => setActiveTab(tabId)}
+                  className="relative"
+                  style={{
+                    padding: '12px 0',
+                    fontSize: 13,
+                    color: isActive
+                      ? 'var(--color-primary)'
+                      : 'var(--text-muted)',
+                    fontWeight: isActive ? 500 : 400,
+                    backgroundColor: 'transparent',
+                    border: 'none',
+                  }}
+                >
+                  {label} ({count})
+                  {isActive && (
+                    <span
+                      className="absolute right-0 left-0"
+                      style={{
+                        bottom: -1,
+                        height: 2,
+                        backgroundColor: 'var(--color-accent)',
+                      }}
+                    />
+                  )}
+                </button>
+              )
+            })}
           </div>
 
-          <div className="p-6">
+          <div style={{ padding: 24 }}>
             {activeTab === 'persons' ? (
               <div>
                 <div className="flex justify-end mb-4">
@@ -396,28 +567,54 @@ export default function ClientDetailPage() {
                       setEditingPerson(undefined)
                       setPersonModalOpen(true)
                     }}
-                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg"
+                    style={{
+                      padding: '8px 14px',
+                      fontSize: 13,
+                      fontWeight: 500,
+                      backgroundColor: 'var(--color-primary)',
+                      color: '#fff',
+                      border: 'none',
+                      borderRadius: 4,
+                    }}
                   >
                     + הוסף אדם חדש
                   </button>
                 </div>
 
                 {persons.length === 0 ? (
-                  <p className="text-center py-8 text-slate-500">
-                    עדיין אין אנשים בתיק. הוסף/י את הראשון.
+                  <p
+                    className="text-center py-8"
+                    style={{ color: 'var(--text-muted)', fontSize: 13 }}
+                  >
+                    עדיין אין אנשים בתיק. הוסיפי את הראשון.
                   </p>
                 ) : (
                   <ul className="space-y-2">
                     {persons.map((p) => (
                       <li
                         key={p.id}
-                        className="flex items-center justify-between gap-3 p-3 border border-slate-200 rounded-lg hover:bg-slate-50"
+                        className="flex items-center justify-between gap-3"
+                        style={{
+                          padding: 14,
+                          border: '0.5px solid var(--border-default)',
+                          borderRadius: 4,
+                        }}
                       >
                         <div className="flex-1 min-w-0">
-                          <div className="font-medium text-slate-800">
+                          <div
+                            style={{
+                              fontSize: 14,
+                              fontWeight: 500,
+                              color: 'var(--text-primary)',
+                            }}
+                          >
                             {p.firstName} {p.lastName}
                           </div>
-                          <div className="text-sm text-slate-500 flex gap-3" dir="rtl">
+                          <div
+                            className="flex gap-3 mt-1"
+                            style={{ fontSize: 12, color: 'var(--text-secondary)' }}
+                            dir="rtl"
+                          >
                             <span>ת.ז. {p.idNumber}</span>
                             <span>·</span>
                             <span>{p.gender === 'male' ? 'זכר' : 'נקבה'}</span>
@@ -430,14 +627,28 @@ export default function ClientDetailPage() {
                               setEditingPerson(p)
                               setPersonModalOpen(true)
                             }}
-                            className="px-3 py-1.5 text-sm text-slate-700 border border-slate-300 hover:bg-slate-100 rounded-lg"
+                            style={{
+                              fontSize: 12,
+                              padding: '6px 12px',
+                              color: 'var(--text-secondary)',
+                              backgroundColor: 'transparent',
+                              border: '0.5px solid var(--border-hover)',
+                              borderRadius: 4,
+                            }}
                           >
                             עריכה
                           </button>
                           <button
                             type="button"
                             onClick={() => setConfirmDeletePersonId(p.id)}
-                            className="px-3 py-1.5 text-sm text-red-600 border border-red-200 hover:bg-red-50 rounded-lg"
+                            style={{
+                              fontSize: 12,
+                              padding: '6px 12px',
+                              color: '#DC2626',
+                              backgroundColor: 'transparent',
+                              border: '0.5px solid #FCA5A5',
+                              borderRadius: 4,
+                            }}
                           >
                             מחיקה
                           </button>
@@ -454,45 +665,92 @@ export default function ClientDetailPage() {
                     type="button"
                     onClick={handleCreateDocument}
                     disabled={isCreatingDoc || !user}
-                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 disabled:cursor-not-allowed text-white text-sm font-medium rounded-lg"
+                    style={{
+                      padding: '8px 14px',
+                      fontSize: 13,
+                      fontWeight: 500,
+                      backgroundColor: 'var(--color-primary)',
+                      color: '#fff',
+                      border: 'none',
+                      borderRadius: 4,
+                      opacity: isCreatingDoc || !user ? 0.5 : 1,
+                      cursor: isCreatingDoc || !user ? 'not-allowed' : 'pointer',
+                    }}
                   >
                     {isCreatingDoc ? 'יוצר...' : '+ מסמך חדש'}
                   </button>
                 </div>
 
                 {documents.length === 0 ? (
-                  <p className="text-center py-8 text-slate-500">
-                    עדיין אין מסמכים בתיק. צור/י את הראשון.
+                  <p
+                    className="text-center py-8"
+                    style={{ color: 'var(--text-muted)', fontSize: 13 }}
+                  >
+                    עדיין אין מסמכים בתיק. צרי את הראשון.
                   </p>
                 ) : (
                   <ul className="space-y-2">
-                    {documents.map((d) => (
-                      <li key={d.id}>
-                        <Link
-                          href={`/clients/${client.id}/documents/${d.id}`}
-                          className="flex items-center justify-between gap-3 p-3 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
-                        >
-                          <div className="flex-1 min-w-0">
-                            <div className="font-medium text-slate-800 truncate">
-                              {d.title}
+                    {documents.map((d) => {
+                      const statusStyle = STATUS_STYLES[d.status]
+                      return (
+                        <li key={d.id}>
+                          <Link
+                            href={`/clients/${client.id}/documents/${d.id}`}
+                            className="flex items-center justify-between gap-3"
+                            style={{
+                              padding: 14,
+                              border: '0.5px solid var(--border-default)',
+                              borderRadius: 4,
+                              textDecoration: 'none',
+                              transition: 'border-color 120ms',
+                            }}
+                          >
+                            <div className="flex-1 min-w-0">
+                              <div
+                                className="truncate"
+                                style={{
+                                  fontSize: 14,
+                                  fontWeight: 500,
+                                  color: 'var(--text-primary)',
+                                }}
+                              >
+                                {d.title}
+                              </div>
+                              <div
+                                style={{
+                                  fontSize: 12,
+                                  color: 'var(--text-secondary)',
+                                  marginTop: 2,
+                                }}
+                              >
+                                {DOC_TYPE_LABELS[d.type]}
+                              </div>
                             </div>
-                            <div className="text-sm text-slate-500">
-                              {DOC_TYPE_LABELS[d.type]}
+                            <div className="flex items-center gap-3 flex-shrink-0">
+                              <span
+                                style={{
+                                  fontSize: 11,
+                                  padding: '2px 8px',
+                                  borderRadius: 10,
+                                  backgroundColor: statusStyle.bg,
+                                  color: statusStyle.color,
+                                }}
+                              >
+                                {STATUS_LABELS[d.status]}
+                              </span>
+                              <span
+                                style={{
+                                  fontSize: 11,
+                                  color: 'var(--text-muted)',
+                                }}
+                              >
+                                {formatDate(d.updatedAt)}
+                              </span>
                             </div>
-                          </div>
-                          <div className="flex items-center gap-3 flex-shrink-0">
-                            <span
-                              className={`text-xs px-2 py-1 rounded-full ${STATUS_STYLES[d.status]}`}
-                            >
-                              {STATUS_LABELS[d.status]}
-                            </span>
-                            <span className="text-xs text-slate-500">
-                              {formatDate(d.updatedAt)}
-                            </span>
-                          </div>
-                        </Link>
-                      </li>
-                    ))}
+                          </Link>
+                        </li>
+                      )
+                    })}
                   </ul>
                 )}
               </div>
@@ -503,20 +761,49 @@ export default function ClientDetailPage() {
 
       {personModalOpen && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 overflow-y-auto"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto"
+          style={{ backgroundColor: 'rgba(15, 42, 91, 0.4)' }}
           role="dialog"
           aria-modal="true"
         >
-          <div className="bg-white rounded-2xl shadow-xl max-w-lg w-full p-6 relative my-8">
+          <div
+            className="max-w-lg w-full my-8 relative"
+            style={{
+              backgroundColor: '#fff',
+              borderRadius: 8,
+              padding: 28,
+            }}
+          >
             <button
               type="button"
               onClick={() => setPersonModalOpen(false)}
               aria-label="סגירה"
-              className="absolute top-3 left-3 w-8 h-8 flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-full text-2xl leading-none"
+              className="absolute top-3 left-3"
+              style={{
+                width: 28,
+                height: 28,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: 'var(--text-muted)',
+                backgroundColor: 'transparent',
+                border: 'none',
+                borderRadius: 4,
+                fontSize: 18,
+                lineHeight: 1,
+              }}
             >
               ×
             </button>
-            <h2 className="text-2xl font-bold text-slate-800 mb-6 text-center">
+            <h2
+              className="doc-title text-center"
+              style={{
+                fontSize: 20,
+                fontWeight: 500,
+                color: 'var(--color-primary)',
+                margin: '0 0 20px',
+              }}
+            >
               {editingPerson ? 'עריכת אדם' : 'הוספת אדם חדש'}
             </h2>
             <PersonForm

@@ -149,44 +149,91 @@ export default function LibraryPage() {
     })
   }, [allSections, searchTerm, category])
 
+  const inputStyle: React.CSSProperties = {
+    padding: '9px 12px',
+    fontSize: 13,
+    backgroundColor: '#fff',
+    border: '0.5px solid var(--border-hover)',
+    borderRadius: 4,
+    color: 'var(--text-primary)',
+  }
+
   return (
-    <main className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
-      <header className="bg-white border-b border-slate-200">
+    <main
+      style={{
+        minHeight: '100vh',
+        backgroundColor: 'var(--bg-secondary)',
+      }}
+    >
+      <header
+        style={{
+          backgroundColor: '#fff',
+          borderBottom: '1px solid var(--border-default)',
+        }}
+      >
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between gap-4">
-          <h1 className="text-xl font-bold text-slate-800">ספריית סעיפים</h1>
-          <div className="flex items-center gap-4">
+          <h1
+            className="doc-title"
+            style={{
+              fontSize: 20,
+              fontWeight: 500,
+              color: 'var(--color-primary)',
+              margin: 0,
+            }}
+          >
+            ספריית סעיפים
+          </h1>
+          <div className="flex items-center gap-5">
             <Link
               href="/library/dictionary"
-              className="text-sm text-blue-600 hover:text-blue-800"
+              style={{
+                fontSize: 13,
+                color: 'var(--color-primary)',
+                textDecoration: 'none',
+              }}
             >
               מילון הטיות ←
             </Link>
             <Link
               href="/dashboard"
-              className="text-sm text-slate-600 hover:text-slate-900"
+              style={{
+                fontSize: 13,
+                color: 'var(--text-secondary)',
+                textDecoration: 'none',
+              }}
             >
-              ← ללוח המחוונים
+              → ללוח המחוונים
             </Link>
           </div>
         </div>
       </header>
 
       <div className="max-w-7xl mx-auto px-6 py-8">
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 mb-6">
+        <div
+          style={{
+            backgroundColor: '#fff',
+            border: '1px solid var(--border-default)',
+            borderRadius: 8,
+            padding: 16,
+            marginBottom: 24,
+          }}
+        >
           <div className="flex flex-col lg:flex-row gap-3 items-start lg:items-center">
             <input
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder="חיפוש בכותרת, תיאור, תגיות, תוכן..."
-              className="flex-1 w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+              className="flex-1 w-full"
+              style={inputStyle}
             />
             <select
               value={category}
               onChange={(e) =>
                 setCategory(e.target.value as DocumentType | 'all')
               }
-              className="w-full lg:w-auto px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+              className="w-full lg:w-auto"
+              style={inputStyle}
             >
               {CATEGORIES.map((c) => (
                 <option key={c} value={c}>
@@ -194,13 +241,13 @@ export default function LibraryPage() {
                 </option>
               ))}
             </select>
-            <div className="flex gap-3 text-sm">
+            <div className="flex gap-3" style={{ fontSize: 13 }}>
               <label className="flex items-center gap-1.5 cursor-pointer whitespace-nowrap">
                 <input
                   type="checkbox"
                   checked={showSystem}
                   onChange={(e) => setShowSystem(e.target.checked)}
-                  className="w-4 h-4"
+                  style={{ width: 14, height: 14 }}
                 />
                 <span>מערכת</span>
               </label>
@@ -209,7 +256,7 @@ export default function LibraryPage() {
                   type="checkbox"
                   checked={showUser}
                   onChange={(e) => setShowUser(e.target.checked)}
-                  className="w-4 h-4"
+                  style={{ width: 14, height: 14 }}
                 />
                 <span>שלי</span>
               </label>
@@ -218,7 +265,18 @@ export default function LibraryPage() {
               type="button"
               onClick={() => setEditorOpen(true)}
               disabled={!user}
-              className="px-5 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white font-medium rounded-lg transition-colors whitespace-nowrap"
+              style={{
+                padding: '9px 18px',
+                fontSize: 13,
+                fontWeight: 500,
+                backgroundColor: 'var(--color-primary)',
+                color: '#fff',
+                border: 'none',
+                borderRadius: 4,
+                whiteSpace: 'nowrap',
+                cursor: !user ? 'not-allowed' : 'pointer',
+                opacity: !user ? 0.5 : 1,
+              }}
             >
               + סעיף חדש
             </button>
@@ -228,21 +286,47 @@ export default function LibraryPage() {
         {error && (
           <div
             role="alert"
-            className="mb-6 p-4 bg-red-50 border border-red-200 text-red-700 rounded-lg"
+            style={{
+              marginBottom: 20,
+              padding: '12px 16px',
+              backgroundColor: '#FEE2E2',
+              border: '0.5px solid #FCA5A5',
+              color: '#991B1B',
+              borderRadius: 4,
+              fontSize: 13,
+            }}
           >
             {error}
           </div>
         )}
 
         {isLoading ? (
-          <div className="text-center py-12 text-slate-500">טוען סעיפים...</div>
+          <div
+            className="text-center py-12"
+            style={{ color: 'var(--text-muted)', fontSize: 13 }}
+          >
+            טוען סעיפים...
+          </div>
         ) : filtered.length === 0 ? (
           <div className="text-center py-16">
-            <p className="text-slate-700 text-lg font-medium">
+            <p
+              style={{
+                fontSize: 16,
+                fontWeight: 500,
+                color: 'var(--text-primary)',
+                margin: '0 0 8px',
+              }}
+            >
               לא נמצאו סעיפים
             </p>
-            <p className="text-slate-500 text-sm mt-2">
-              נסה/י לשנות את הסינון או צור/י סעיף חדש.
+            <p
+              style={{
+                fontSize: 13,
+                color: 'var(--text-secondary)',
+                margin: 0,
+              }}
+            >
+              נסי לשנות את הסינון או צרי סעיף חדש.
             </p>
           </div>
         ) : (
@@ -250,40 +334,87 @@ export default function LibraryPage() {
             {filtered.map((s) => (
               <div
                 key={s.id}
-                className="relative bg-white rounded-xl border border-slate-200 hover:border-blue-400 hover:shadow-sm transition-all"
+                className="relative"
+                style={{
+                  backgroundColor: '#fff',
+                  border: '1px solid var(--border-default)',
+                  borderRadius: 8,
+                  transition: 'border-color 120ms',
+                }}
               >
                 <button
                   type="button"
                   onClick={() => setPreviewSection(s)}
-                  className="text-right w-full p-4"
+                  className="text-right w-full"
+                  style={{
+                    padding: 16,
+                    background: 'transparent',
+                    border: 'none',
+                    cursor: 'pointer',
+                  }}
                 >
-                  <div className="flex items-start justify-between gap-2 mb-2 pl-7">
-                    <h3 className="font-semibold text-slate-800 flex-1">
+                  <div
+                    className="flex items-start justify-between gap-2 mb-2"
+                    style={{ paddingLeft: 28 }}
+                  >
+                    <h3
+                      className="doc-title flex-1"
+                      style={{
+                        fontSize: 14,
+                        fontWeight: 500,
+                        color: 'var(--color-primary)',
+                        margin: 0,
+                      }}
+                    >
                       {s.title}
                     </h3>
                     <span
-                      className={`text-[10px] px-1.5 py-0.5 rounded flex-shrink-0 ${
-                        s.isSystem
-                          ? 'bg-slate-100 text-slate-600'
-                          : 'bg-emerald-100 text-emerald-700'
-                      }`}
+                      style={{
+                        fontSize: 10,
+                        padding: '2px 6px',
+                        borderRadius: 3,
+                        flexShrink: 0,
+                        backgroundColor: s.isSystem ? '#F3F4F6' : '#FEF3C7',
+                        color: s.isSystem ? '#6B7280' : '#92660A',
+                      }}
                     >
                       {s.isSystem ? 'מערכת' : 'שלי'}
                     </span>
                   </div>
                   {s.description && (
-                    <p className="text-sm text-slate-500 line-clamp-2 mb-3">
+                    <p
+                      className="line-clamp-2"
+                      style={{
+                        fontSize: 12,
+                        color: 'var(--text-secondary)',
+                        margin: '0 0 12px',
+                      }}
+                    >
                       {s.description}
                     </p>
                   )}
                   <div className="flex flex-wrap gap-1">
-                    <span className="text-[10px] px-1.5 py-0.5 bg-blue-50 text-blue-700 rounded">
+                    <span
+                      style={{
+                        fontSize: 10,
+                        padding: '2px 6px',
+                        borderRadius: 3,
+                        backgroundColor: 'var(--color-primary-light)',
+                        color: 'var(--color-primary)',
+                      }}
+                    >
                       {CATEGORY_LABELS[s.category]}
                     </span>
                     {s.tags.slice(0, 4).map((tag) => (
                       <span
                         key={tag}
-                        className="text-[10px] px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded"
+                        style={{
+                          fontSize: 10,
+                          padding: '2px 6px',
+                          borderRadius: 3,
+                          backgroundColor: 'var(--bg-secondary)',
+                          color: 'var(--text-secondary)',
+                        }}
                       >
                         {tag}
                       </span>
@@ -296,7 +427,22 @@ export default function LibraryPage() {
                     onClick={() => setSectionToDelete(s)}
                     aria-label={`מחק את ${s.title}`}
                     title="מחק סעיף"
-                    className="absolute top-3 left-3 w-7 h-7 flex items-center justify-center text-slate-400 hover:text-red-600 hover:bg-red-50 rounded text-lg leading-none"
+                    className="absolute"
+                    style={{
+                      top: 12,
+                      left: 12,
+                      width: 24,
+                      height: 24,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: 'var(--text-muted)',
+                      backgroundColor: 'transparent',
+                      border: 'none',
+                      borderRadius: 4,
+                      fontSize: 16,
+                      lineHeight: 1,
+                    }}
                   >
                     ×
                   </button>
@@ -333,66 +479,145 @@ export default function LibraryPage() {
 
       {previewSection && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 overflow-y-auto"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto"
+          style={{ backgroundColor: 'rgba(15, 42, 91, 0.4)' }}
           role="dialog"
           aria-modal="true"
         >
-          <div className="bg-white rounded-2xl shadow-xl max-w-3xl w-full p-6 relative my-8">
+          <div
+            className="max-w-3xl w-full my-8 relative"
+            style={{
+              backgroundColor: '#fff',
+              borderRadius: 8,
+              padding: 28,
+            }}
+          >
             <button
               type="button"
               onClick={() => setPreviewSection(null)}
               aria-label="סגירה"
-              className="absolute top-3 left-3 w-8 h-8 flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-full text-2xl leading-none"
+              className="absolute top-3 left-3"
+              style={{
+                width: 28,
+                height: 28,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: 'var(--text-muted)',
+                backgroundColor: 'transparent',
+                border: 'none',
+                fontSize: 18,
+                lineHeight: 1,
+              }}
             >
               ×
             </button>
-            <div className="flex items-start gap-3 mb-4">
-              <h2 className="text-xl font-bold text-slate-800 flex-1">
+            <div className="flex items-start gap-3 mb-3">
+              <h2
+                className="doc-title flex-1"
+                style={{
+                  fontSize: 20,
+                  fontWeight: 500,
+                  color: 'var(--color-primary)',
+                  margin: 0,
+                }}
+              >
                 {previewSection.title}
               </h2>
               <span
-                className={`text-xs px-2 py-0.5 rounded ${
-                  previewSection.isSystem
-                    ? 'bg-slate-100 text-slate-600'
-                    : 'bg-emerald-100 text-emerald-700'
-                }`}
+                style={{
+                  fontSize: 11,
+                  padding: '2px 8px',
+                  borderRadius: 3,
+                  backgroundColor: previewSection.isSystem
+                    ? '#F3F4F6'
+                    : '#FEF3C7',
+                  color: previewSection.isSystem ? '#6B7280' : '#92660A',
+                }}
               >
                 {previewSection.isSystem ? 'מערכת' : 'שלי'}
               </span>
             </div>
             {previewSection.description && (
-              <p className="text-sm text-slate-600 mb-4">
+              <p
+                style={{
+                  fontSize: 13,
+                  color: 'var(--text-secondary)',
+                  marginBottom: 16,
+                }}
+              >
                 {previewSection.description}
               </p>
             )}
-            <div className="mb-4">
-              <h3 className="text-sm font-semibold text-slate-700 mb-2">
+            <div style={{ marginBottom: 16 }}>
+              <div
+                style={{
+                  fontSize: 12,
+                  color: 'var(--text-secondary)',
+                  marginBottom: 8,
+                }}
+              >
                 תוכן (עם placeholders):
-              </h3>
+              </div>
               {previewSection.variants.map((v) => (
                 <div
                   key={v.id}
-                  className="bg-slate-50 border border-slate-200 rounded-lg p-4 mb-2"
+                  style={{
+                    backgroundColor: 'var(--bg-secondary)',
+                    border: '0.5px solid var(--border-default)',
+                    borderRadius: 4,
+                    padding: 14,
+                    marginBottom: 8,
+                  }}
                 >
                   {previewSection.variants.length > 1 && (
-                    <p className="text-xs font-medium text-slate-500 mb-2">
+                    <div
+                      style={{
+                        fontSize: 11,
+                        fontWeight: 500,
+                        color: 'var(--text-secondary)',
+                        marginBottom: 6,
+                      }}
+                    >
                       {v.label}
-                    </p>
+                    </div>
                   )}
-                  <pre className="whitespace-pre-wrap text-sm text-slate-800 font-sans">
+                  <pre
+                    className="whitespace-pre-wrap"
+                    style={{
+                      fontSize: 12,
+                      color: 'var(--text-primary)',
+                      fontFamily: 'inherit',
+                      margin: 0,
+                    }}
+                  >
                     {v.content}
                   </pre>
                 </div>
               ))}
             </div>
             <div className="flex flex-wrap gap-1">
-              <span className="text-xs px-2 py-0.5 bg-blue-50 text-blue-700 rounded">
+              <span
+                style={{
+                  fontSize: 11,
+                  padding: '2px 8px',
+                  borderRadius: 3,
+                  backgroundColor: 'var(--color-primary-light)',
+                  color: 'var(--color-primary)',
+                }}
+              >
                 {CATEGORY_LABELS[previewSection.category]}
               </span>
               {previewSection.tags.map((tag) => (
                 <span
                   key={tag}
-                  className="text-xs px-2 py-0.5 bg-slate-100 text-slate-600 rounded"
+                  style={{
+                    fontSize: 11,
+                    padding: '2px 8px',
+                    borderRadius: 3,
+                    backgroundColor: 'var(--bg-secondary)',
+                    color: 'var(--text-secondary)',
+                  }}
                 >
                   {tag}
                 </span>

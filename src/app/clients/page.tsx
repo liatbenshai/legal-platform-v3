@@ -56,7 +56,7 @@ export default function ClientsPage() {
       .eq('user_id', user.id)
       .order('updated_at', { ascending: false })
     if (queryError) {
-      setError('שגיאה בטעינת הלקוחות. נסה/י לרענן את הדף.')
+      setError('שגיאה בטעינת הלקוחות. נסי לרענן את הדף.')
       setIsLoading(false)
       return
     }
@@ -83,15 +83,40 @@ export default function ClientsPage() {
   }, [clients, searchTerm])
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
-      <header className="bg-white border-b border-slate-200">
+    <main
+      style={{
+        minHeight: '100vh',
+        backgroundColor: 'var(--bg-secondary)',
+      }}
+    >
+      <header
+        style={{
+          backgroundColor: '#fff',
+          borderBottom: '1px solid var(--border-default)',
+        }}
+      >
         <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
-          <h1 className="text-xl font-bold text-slate-800">תיקי לקוחות</h1>
+          <h1
+            className="doc-title"
+            style={{
+              fontSize: 20,
+              fontWeight: 500,
+              color: 'var(--color-primary)',
+              margin: 0,
+            }}
+          >
+            תיקי לקוחות
+          </h1>
           <Link
             href="/dashboard"
-            className="text-sm text-slate-600 hover:text-slate-900"
+            style={{
+              fontSize: 13,
+              color: 'var(--text-secondary)',
+              textDecoration: 'none',
+            }}
+            className="hover:text-slate-900"
           >
-            ← חזרה ללוח המחוונים
+            → ללוח המחוונים
           </Link>
         </div>
       </header>
@@ -104,12 +129,30 @@ export default function ClientsPage() {
             onChange={(e) => setSearchTerm(e.target.value)}
             placeholder="חיפוש לקוח לפי שם..."
             aria-label="חיפוש לקוח"
-            className="flex-1 px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            style={{
+              flex: 1,
+              padding: '9px 12px',
+              fontSize: 14,
+              backgroundColor: '#fff',
+              border: '0.5px solid var(--border-hover)',
+              borderRadius: 4,
+              color: 'var(--text-primary)',
+            }}
           />
           <button
             type="button"
             onClick={() => setIsModalOpen(true)}
-            className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors whitespace-nowrap"
+            style={{
+              padding: '9px 18px',
+              fontSize: 13,
+              fontWeight: 500,
+              backgroundColor: 'var(--color-primary)',
+              color: '#fff',
+              border: 'none',
+              borderRadius: 4,
+              whiteSpace: 'nowrap',
+              cursor: 'pointer',
+            }}
           >
             + לקוח חדש
           </button>
@@ -118,25 +161,54 @@ export default function ClientsPage() {
         {error && (
           <div
             role="alert"
-            className="mb-6 p-4 bg-red-50 border border-red-200 text-red-700 rounded-lg"
+            style={{
+              marginBottom: 20,
+              padding: '12px 16px',
+              backgroundColor: '#FEE2E2',
+              border: '0.5px solid #FCA5A5',
+              color: '#991B1B',
+              borderRadius: 4,
+              fontSize: 13,
+            }}
           >
             {error}
           </div>
         )}
 
         {isLoading ? (
-          <div className="text-center py-12 text-slate-500">טוען לקוחות...</div>
+          <div
+            className="text-center py-12"
+            style={{ color: 'var(--text-muted)', fontSize: 13 }}
+          >
+            טוען לקוחות...
+          </div>
         ) : clients.length === 0 ? (
           <div className="text-center py-16">
-            <p className="text-slate-700 text-lg font-medium">
+            <p
+              style={{
+                fontSize: 16,
+                fontWeight: 500,
+                color: 'var(--text-primary)',
+                margin: '0 0 8px',
+              }}
+            >
               אין לקוחות בתיק שלך
             </p>
-            <p className="text-slate-500 text-sm mt-2">
-              לחץ/י על &quot;לקוח חדש&quot; כדי להוסיף תיק ראשון
+            <p
+              style={{
+                fontSize: 13,
+                color: 'var(--text-secondary)',
+                margin: 0,
+              }}
+            >
+              לחצי על &quot;לקוח חדש&quot; כדי להוסיף תיק ראשון
             </p>
           </div>
         ) : filtered.length === 0 ? (
-          <div className="text-center py-12 text-slate-500">
+          <div
+            className="text-center py-12"
+            style={{ color: 'var(--text-muted)', fontSize: 13 }}
+          >
             לא נמצאו לקוחות התואמים את החיפוש &quot;{searchTerm}&quot;
           </div>
         ) : (

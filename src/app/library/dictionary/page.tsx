@@ -186,39 +186,76 @@ export default function DictionaryPage() {
     }
   }
 
+  const inputStyle: React.CSSProperties = {
+    padding: '9px 12px',
+    fontSize: 13,
+    backgroundColor: '#fff',
+    border: '0.5px solid var(--border-hover)',
+    borderRadius: 4,
+    color: 'var(--text-primary)',
+  }
+
   return (
-    <main className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
-      <header className="bg-white border-b border-slate-200">
+    <main
+      style={{ minHeight: '100vh', backgroundColor: 'var(--bg-secondary)' }}
+    >
+      <header
+        style={{
+          backgroundColor: '#fff',
+          borderBottom: '1px solid var(--border-default)',
+        }}
+      >
         <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between gap-4">
-          <h1 className="text-xl font-bold text-slate-800">מילון הטיות</h1>
-          <div className="flex items-center gap-4">
-            <Link
-              href="/library"
-              className="text-sm text-slate-600 hover:text-slate-900"
-            >
-              ← לספריית הסעיפים
-            </Link>
-          </div>
+          <h1
+            className="doc-title"
+            style={{
+              fontSize: 20,
+              fontWeight: 500,
+              color: 'var(--color-primary)',
+              margin: 0,
+            }}
+          >
+            מילון הטיות
+          </h1>
+          <Link
+            href="/library"
+            style={{
+              fontSize: 13,
+              color: 'var(--text-secondary)',
+              textDecoration: 'none',
+            }}
+          >
+            → לספריית הסעיפים
+          </Link>
         </div>
       </header>
 
       <div className="max-w-6xl mx-auto px-6 py-8">
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 mb-6">
+        <div
+          style={{
+            backgroundColor: '#fff',
+            border: '1px solid var(--border-default)',
+            borderRadius: 8,
+            padding: 16,
+            marginBottom: 16,
+          }}
+        >
           <div className="flex flex-col lg:flex-row gap-3 items-start lg:items-center">
             <input
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder="חיפוש מילה (זכר/נקבה/רבים)"
-              className="flex-1 w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+              className="flex-1 w-full"
+              style={inputStyle}
             />
-            <div className="flex gap-3 text-sm">
+            <div className="flex gap-3" style={{ fontSize: 13 }}>
               <label className="flex items-center gap-1.5 cursor-pointer whitespace-nowrap">
                 <input
                   type="checkbox"
                   checked={showSystem}
                   onChange={(e) => setShowSystem(e.target.checked)}
-                  className="w-4 h-4"
+                  style={{ width: 14, height: 14 }}
                 />
                 <span>מערכת</span>
               </label>
@@ -227,7 +264,7 @@ export default function DictionaryPage() {
                   type="checkbox"
                   checked={showUser}
                   onChange={(e) => setShowUser(e.target.checked)}
-                  className="w-4 h-4"
+                  style={{ width: 14, height: 14 }}
                 />
                 <span>שלי</span>
               </label>
@@ -236,83 +273,215 @@ export default function DictionaryPage() {
               type="button"
               onClick={() => setFormOpen(true)}
               disabled={!user}
-              className="px-5 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white font-medium rounded-lg transition-colors whitespace-nowrap"
+              style={{
+                padding: '9px 18px',
+                fontSize: 13,
+                fontWeight: 500,
+                backgroundColor: 'var(--color-primary)',
+                color: '#fff',
+                border: 'none',
+                borderRadius: 4,
+                whiteSpace: 'nowrap',
+                cursor: !user ? 'not-allowed' : 'pointer',
+                opacity: !user ? 0.5 : 1,
+              }}
             >
               + הטייה חדשה
             </button>
           </div>
         </div>
 
-        <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-900">
-          <p>
-            <strong>איך זה עובד:</strong> ערכי "מערכת" מקובעים בקוד וזמינים לכל
-            המשתמשים. ערכים "שלי" נשמרים במסד הנתונים שלך וזמינים רק לך. אם תוסיפי
-            ערך אישי עם אותו מפתח של ערך מערכת — הערך האישי שלך גובר.
-          </p>
+        <div
+          style={{
+            marginBottom: 16,
+            padding: '10px 12px',
+            backgroundColor: 'var(--color-accent-bg)',
+            borderRight: '3px solid var(--color-accent)',
+            borderRadius: 4,
+            fontSize: 12,
+            lineHeight: 1.5,
+            color: '#92660A',
+          }}
+        >
+          <i
+            className="ti ti-bulb"
+            style={{ marginLeft: 6, fontSize: 12 }}
+          />
+          <strong>איך זה עובד:</strong> ערכי &quot;מערכת&quot; מקובעים בקוד
+          וזמינים לכל המשתמשים. ערכים &quot;שלי&quot; נשמרים במסד הנתונים שלך
+          וזמינים רק לך. אם תוסיפי ערך אישי עם אותו מפתח של ערך מערכת — הערך
+          האישי שלך גובר.
         </div>
 
         {error && (
           <div
             role="alert"
-            className="mb-6 p-4 bg-red-50 border border-red-200 text-red-700 rounded-lg"
+            style={{
+              marginBottom: 16,
+              padding: '12px 16px',
+              backgroundColor: '#FEE2E2',
+              border: '0.5px solid #FCA5A5',
+              color: '#991B1B',
+              borderRadius: 4,
+              fontSize: 13,
+            }}
           >
             {error}
           </div>
         )}
 
         {isLoading ? (
-          <div className="text-center py-12 text-slate-500">טוען...</div>
+          <div
+            className="text-center py-12"
+            style={{ color: 'var(--text-muted)', fontSize: 13 }}
+          >
+            טוען...
+          </div>
         ) : filtered.length === 0 ? (
-          <div className="text-center py-12 text-slate-500">
+          <div
+            className="text-center py-12"
+            style={{ color: 'var(--text-muted)', fontSize: 13 }}
+          >
             לא נמצאו ערכים
           </div>
         ) : (
-          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-            <table className="w-full text-sm">
-              <thead className="bg-slate-50 border-b border-slate-200 text-slate-700">
+          <div
+            style={{
+              backgroundColor: '#fff',
+              border: '1px solid var(--border-default)',
+              borderRadius: 8,
+              overflow: 'hidden',
+            }}
+          >
+            <table className="w-full" style={{ fontSize: 13 }}>
+              <thead
+                style={{
+                  backgroundColor: 'var(--bg-secondary)',
+                  borderBottom: '1px solid var(--border-default)',
+                  color: 'var(--text-secondary)',
+                }}
+              >
                 <tr>
-                  <th className="text-right p-3 font-semibold">מפתח</th>
-                  <th className="text-right p-3 font-semibold">זכר</th>
-                  <th className="text-right p-3 font-semibold">נקבה</th>
-                  <th className="text-right p-3 font-semibold">רבים</th>
-                  <th className="text-right p-3 font-semibold">רבות (אופציונלי)</th>
-                  <th className="text-right p-3 font-semibold w-24">מקור</th>
-                  <th className="w-12"></th>
+                  <th
+                    className="text-right"
+                    style={{ padding: '10px 14px', fontSize: 12, fontWeight: 500 }}
+                  >
+                    מפתח
+                  </th>
+                  <th
+                    className="text-right"
+                    style={{ padding: '10px 14px', fontSize: 12, fontWeight: 500 }}
+                  >
+                    זכר
+                  </th>
+                  <th
+                    className="text-right"
+                    style={{ padding: '10px 14px', fontSize: 12, fontWeight: 500 }}
+                  >
+                    נקבה
+                  </th>
+                  <th
+                    className="text-right"
+                    style={{ padding: '10px 14px', fontSize: 12, fontWeight: 500 }}
+                  >
+                    רבים
+                  </th>
+                  <th
+                    className="text-right"
+                    style={{ padding: '10px 14px', fontSize: 12, fontWeight: 500 }}
+                  >
+                    רבות (אופציונלי)
+                  </th>
+                  <th
+                    className="text-right"
+                    style={{
+                      padding: '10px 14px',
+                      fontSize: 12,
+                      fontWeight: 500,
+                      width: 90,
+                    }}
+                  >
+                    מקור
+                  </th>
+                  <th style={{ width: 40 }}></th>
                 </tr>
               </thead>
               <tbody>
                 {filtered.map((e, idx) => (
                   <tr
                     key={`${e.isSystem ? 'sys' : 'usr'}-${e.word}-${idx}`}
-                    className={`border-b border-slate-100 ${
-                      e.isSystem ? '' : 'bg-emerald-50/30'
-                    }`}
+                    style={{
+                      borderTop: idx === 0 ? 'none' : '0.5px solid var(--border-default)',
+                      backgroundColor: e.isSystem ? '#fff' : '#FFFBEB',
+                    }}
                   >
-                    <td className="p-3 font-mono text-slate-800">{e.word}</td>
-                    <td className="p-3 text-slate-700">{e.male}</td>
-                    <td className="p-3 text-slate-700">{e.female}</td>
-                    <td className="p-3 text-slate-700">{e.plural}</td>
-                    <td className="p-3 text-slate-500">
+                    <td
+                      style={{
+                        padding: '10px 14px',
+                        fontFamily: 'ui-monospace, monospace',
+                        color: 'var(--color-primary)',
+                      }}
+                    >
+                      {e.word}
+                    </td>
+                    <td
+                      style={{ padding: '10px 14px', color: 'var(--text-primary)' }}
+                    >
+                      {e.male}
+                    </td>
+                    <td
+                      style={{ padding: '10px 14px', color: 'var(--text-primary)' }}
+                    >
+                      {e.female}
+                    </td>
+                    <td
+                      style={{ padding: '10px 14px', color: 'var(--text-primary)' }}
+                    >
+                      {e.plural}
+                    </td>
+                    <td
+                      style={{ padding: '10px 14px', color: 'var(--text-muted)' }}
+                    >
                       {e.plural_female ?? '—'}
                     </td>
-                    <td className="p-3">
+                    <td style={{ padding: '10px 14px' }}>
                       <span
-                        className={`text-[10px] px-1.5 py-0.5 rounded ${
-                          e.isSystem
-                            ? 'bg-slate-100 text-slate-600'
-                            : 'bg-emerald-100 text-emerald-700'
-                        }`}
+                        style={{
+                          fontSize: 10,
+                          padding: '2px 6px',
+                          borderRadius: 3,
+                          backgroundColor: e.isSystem
+                            ? '#F3F4F6'
+                            : '#FEF3C7',
+                          color: e.isSystem ? '#6B7280' : '#92660A',
+                        }}
                       >
-                        {e.isSystem ? 'מערכת' : e.overridesSystem ? 'שלי (גובר)' : 'שלי'}
+                        {e.isSystem
+                          ? 'מערכת'
+                          : e.overridesSystem
+                            ? 'שלי (גובר)'
+                            : 'שלי'}
                       </span>
                     </td>
-                    <td className="p-3">
+                    <td style={{ padding: '6px 8px' }}>
                       {!e.isSystem && (
                         <button
                           type="button"
                           onClick={() => setEntryToDelete(e)}
                           aria-label="מחק"
-                          className="w-7 h-7 flex items-center justify-center text-slate-400 hover:text-red-600 hover:bg-red-50 rounded text-lg leading-none"
+                          style={{
+                            width: 24,
+                            height: 24,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            color: 'var(--text-muted)',
+                            backgroundColor: 'transparent',
+                            border: 'none',
+                            borderRadius: 4,
+                            fontSize: 16,
+                            lineHeight: 1,
+                          }}
                         >
                           ×
                         </button>
