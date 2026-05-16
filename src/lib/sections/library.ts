@@ -23,6 +23,7 @@ import sec022 from '@templates/poa-medical/SEC_022.json'
 import sec023 from '@templates/poa-medical/SEC_023.json'
 import sec024 from '@templates/poa-medical/SEC_024.json'
 import sec025 from '@templates/poa-medical/SEC_025.json'
+import sec026 from '@templates/poa-personal/SEC_026.json'
 
 import type { ActorRole, DocumentType } from '@/lib/types'
 
@@ -72,6 +73,7 @@ export const sectionLibrary: LibrarySection[] = [
   sec023,
   sec024,
   sec025,
+  sec026,
 ] as LibrarySection[]
 
 export const CATEGORY_LABELS: Record<DocumentType, string> = {

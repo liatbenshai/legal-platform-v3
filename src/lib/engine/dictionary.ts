@@ -23,6 +23,10 @@ export const dictionary: Record<string, InflectedWord> = {
   'מבקש': { male: 'מבקש', female: 'מבקשת', plural: 'מבקשים' },
   'מעדיף': { male: 'מעדיף', female: 'מעדיפה', plural: 'מעדיפים' },
   'אינני': { male: 'אינני', female: 'איני', plural: 'איננו' },
+  'מביע': { male: 'מביע', female: 'מביעה', plural: 'מביעים' },
+  'מסמיך': { male: 'מסמיך', female: 'מסמיכה', plural: 'מסמיכים' },
+  'זקוק': { male: 'זקוק', female: 'זקוקה', plural: 'זקוקים' },
+  'מסוגל': { male: 'מסוגל', female: 'מסוגלת', plural: 'מסוגלים' },
   'יליד': { male: 'יליד', female: 'ילידת', plural: 'ילידי' },
   'תושב': { male: 'תושב', female: 'תושבת', plural: 'תושבי' },
 
@@ -61,6 +65,14 @@ export const dictionary: Record<string, InflectedWord> = {
   'ייצג': { male: 'ייצג', female: 'תייצג', plural: 'ייצגו' },
   'יתייעץ': { male: 'יתייעץ', female: 'תתייעץ', plural: 'יתייעצו' },
   'ייגע': { male: 'ייגע', female: 'תיגע', plural: 'ייגעו' },
+  'ישקול': { male: 'ישקול', female: 'תשקול', plural: 'ישקלו' },
+  'יבקר': { male: 'יבקר', female: 'תבקר', plural: 'יבקרו' },
+  'יבדוק': { male: 'יבדוק', female: 'תבדוק', plural: 'יבדקו' },
+  'ישתדל': { male: 'ישתדל', female: 'תשתדל', plural: 'ישתדלו' },
+  'יסדיר': { male: 'יסדיר', female: 'תסדיר', plural: 'יסדירו' },
+  'יתכנן': { male: 'יתכנן', female: 'תתכנן', plural: 'יתכננו' },
+  'יארגן': { male: 'יארגן', female: 'תארגן', plural: 'יארגנו' },
+  'יתעד': { male: 'יתעד', female: 'תתעד', plural: 'יתעדו' },
 
   // === תארים ===
   'רשאי': { male: 'רשאי', female: 'רשאית', plural: 'רשאים' },
