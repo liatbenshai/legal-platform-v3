@@ -13,6 +13,7 @@ interface PersonPickerProps {
   multiple?: boolean
   excludeIds?: string[]
   label?: string
+  onPersonCreated?: (person: Person) => void
 }
 
 export function PersonPicker({
@@ -22,6 +23,7 @@ export function PersonPicker({
   multiple = false,
   excludeIds = [],
   label,
+  onPersonCreated,
 }: PersonPickerProps) {
   const [persons, setPersons] = useState<Person[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -65,6 +67,7 @@ export function PersonPicker({
 
   async function handlePersonCreated(newPerson: Person) {
     await loadPersons()
+    onPersonCreated?.(newPerson)
     if (multiple) {
       onChange([...selectedIds, newPerson.id])
     } else {

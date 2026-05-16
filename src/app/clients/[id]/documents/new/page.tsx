@@ -249,6 +249,9 @@ export default function NewDocumentPage() {
                 selectedIds={principalIds}
                 onChange={setPrincipalIds}
                 multiple={false}
+                onPersonCreated={(p) =>
+                  setPersons((curr) => [...curr, p])
+                }
               />
             </>
           )}
@@ -267,6 +270,9 @@ export default function NewDocumentPage() {
                 onChange={setAttorneyIds}
                 multiple={true}
                 excludeIds={principalIds}
+                onPersonCreated={(p) =>
+                  setPersons((curr) => [...curr, p])
+                }
               />
 
               {attorneys.length > 0 && (
