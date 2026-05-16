@@ -17,6 +17,7 @@ import { createClient } from '@/lib/db/supabase'
 import { getTemplates } from '@/lib/db/templates'
 import { dictionary as staticDictionary } from '@/lib/engine/dictionary'
 import { renderDocument } from '@/lib/engine/renderer'
+import { exportToWord } from '@/lib/export/word'
 import { sectionLibrary, type LibrarySection } from '@/lib/sections/library'
 import { useUser } from '@/lib/hooks/useUser'
 import type {
@@ -265,6 +266,30 @@ export default function DocumentEditorPage() {
     })
   }
 
+  const [isExporting, setIsExporting] = useState(false)
+  const [exportError, setExportError] = useState<string | null>(null)
+
+  async function handleExport() {
+    if (!document) return
+    if (document.sections.length === 0) {
+      setExportError('המסמך ריק. בחרי לפחות סעיף אחד לפני ייצוא.')
+      return
+    }
+    setIsExporting(true)
+    setExportError(null)
+    try {
+      await exportToWord({
+        document,
+        persons,
+        dictionary: mergedDictionary,
+      })
+    } catch {
+      setExportError('שגיאה בייצוא לוורד. נסי שוב.')
+    } finally {
+      setIsExporting(false)
+    }
+  }
+
   if (isLoading) {
     return (
       <main className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
@@ -329,8 +354,16 @@ export default function DocumentEditorPage() {
               ))}
             </div>
           </div>
-          <div className="flex items-center gap-4 flex-shrink-0">
+          <div className="flex items-center gap-3 flex-shrink-0">
             <SaveIndicator status={saveStatus} />
+            <button
+              type="button"
+              onClick={handleExport}
+              disabled={isExporting || document.sections.length === 0}
+              className="px-4 py-1.5 text-sm bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-300 disabled:cursor-not-allowed text-white font-medium rounded-lg transition-colors"
+            >
+              {isExporting ? 'מייצא...' : 'ייצוא לוורד'}
+            </button>
             <Link
               href={`/clients/${clientId}`}
               className="text-sm text-slate-600 hover:text-slate-900"
@@ -342,6 +375,16 @@ export default function DocumentEditorPage() {
         <div className="max-w-7xl mx-auto px-6 pb-2 text-xs text-slate-400">
           לעריכת מגדר של ממנה או מיופה — עברו לתיק הלקוח וערכו את האדם המתאים.
         </div>
+        {exportError && (
+          <div className="max-w-7xl mx-auto px-6 pb-2">
+            <div
+              role="alert"
+              className="p-2 bg-red-50 border border-red-200 text-red-700 rounded-lg text-xs"
+            >
+              {exportError}
+            </div>
+          </div>
+        )}
       </header>
 
       <div className="max-w-7xl mx-auto px-6 py-6">
