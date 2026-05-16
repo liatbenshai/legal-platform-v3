@@ -24,6 +24,34 @@ import sec023 from '@templates/poa-medical/SEC_023.json'
 import sec024 from '@templates/poa-medical/SEC_024.json'
 import sec025 from '@templates/poa-medical/SEC_025.json'
 import sec026 from '@templates/poa-personal/SEC_026.json'
+import sec027 from '@templates/poa-medical/SEC_027.json'
+import sec028 from '@templates/poa-personal/SEC_028.json'
+import sec029 from '@templates/poa-property/SEC_029.json'
+import sec030 from '@templates/poa-personal/SEC_030.json'
+import sec031 from '@templates/poa-property/SEC_031.json'
+import sec032 from '@templates/poa-property/SEC_032.json'
+import sec033 from '@templates/poa-property/SEC_033.json'
+import sec034 from '@templates/poa-property/SEC_034.json'
+import sec035 from '@templates/poa-property/SEC_035.json'
+import sec036 from '@templates/poa-property/SEC_036.json'
+import sec037 from '@templates/poa-property/SEC_037.json'
+import sec038 from '@templates/poa-personal/SEC_038.json'
+import sec039 from '@templates/poa-personal/SEC_039.json'
+import sec040 from '@templates/poa-personal/SEC_040.json'
+import sec041 from '@templates/poa-personal/SEC_041.json'
+import sec042 from '@templates/poa-personal/SEC_042.json'
+import sec043 from '@templates/poa-personal/SEC_043.json'
+import sec044 from '@templates/poa-personal/SEC_044.json'
+import sec045 from '@templates/poa-medical/SEC_045.json'
+import sec046 from '@templates/poa-medical/SEC_046.json'
+import sec047 from '@templates/poa-medical/SEC_047.json'
+import sec048 from '@templates/poa-medical/SEC_048.json'
+import sec049 from '@templates/poa-medical/SEC_049.json'
+import sec050 from '@templates/poa-medical/SEC_050.json'
+import sec051 from '@templates/poa-medical/SEC_051.json'
+import sec052 from '@templates/poa-medical/SEC_052.json'
+import sec053 from '@templates/poa-medical/SEC_053.json'
+import sec054 from '@templates/poa-medical/SEC_054.json'
 
 import type { ActorRole, DocumentType } from '@/lib/types'
 
@@ -74,6 +102,34 @@ export const sectionLibrary: LibrarySection[] = [
   sec024,
   sec025,
   sec026,
+  sec027,
+  sec028,
+  sec029,
+  sec030,
+  sec031,
+  sec032,
+  sec033,
+  sec034,
+  sec035,
+  sec036,
+  sec037,
+  sec038,
+  sec039,
+  sec040,
+  sec041,
+  sec042,
+  sec043,
+  sec044,
+  sec045,
+  sec046,
+  sec047,
+  sec048,
+  sec049,
+  sec050,
+  sec051,
+  sec052,
+  sec053,
+  sec054,
 ] as LibrarySection[]
 
 export const CATEGORY_LABELS: Record<DocumentType, string> = {

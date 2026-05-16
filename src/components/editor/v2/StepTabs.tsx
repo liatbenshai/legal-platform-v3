@@ -4,6 +4,7 @@ export type TabId =
   | 'principal'
   | 'attorneys'
   | 'powers'
+  | 'details'
   | 'directives'
   | 'signature'
 
@@ -16,6 +17,7 @@ export const TABS: TabDef[] = [
   { id: 'principal', label: 'פרטי הממנה' },
   { id: 'attorneys', label: 'מיופי הכוח' },
   { id: 'powers', label: 'סמכויות' },
+  { id: 'details', label: 'פרטים' },
   { id: 'directives', label: 'הנחיות מקדימות' },
   { id: 'signature', label: 'חתימה ואישור' },
 ]

@@ -8,12 +8,13 @@ import {
 } from 'docx'
 import { saveAs } from 'file-saver'
 import JSZip from 'jszip'
+import { buildDetailsSections } from '@/lib/engine/details-sections'
 import {
   dictionary as staticDictionary,
   type InflectedWord,
 } from '@/lib/engine/dictionary'
 import { renderDocument } from '@/lib/engine/renderer'
-import type { Document, Person } from '@/lib/types'
+import type { Document, DocumentDetails, Person } from '@/lib/types'
 
 const FONT = 'David'
 const SIZE_TITLE = 32 // 16pt
@@ -26,6 +27,7 @@ interface ExportOptions {
   document: Document
   persons: Person[]
   dictionary?: Record<string, InflectedWord>
+  details?: DocumentDetails
 }
 
 function formatDateForExport(d: Date): string {
@@ -263,11 +265,15 @@ function safeFilename(title: string): string {
 }
 
 export async function exportToWord(opts: ExportOptions): Promise<void> {
-  const rendered = renderDocument({
+  const fromTemplates = renderDocument({
     document: opts.document,
     persons: opts.persons,
     dictionary: opts.dictionary,
   })
+  const fromDetails = opts.details
+    ? buildDetailsSections(opts.details)
+    : []
+  const rendered = [...fromDetails, ...fromTemplates]
 
   const children: Paragraph[] = []
 

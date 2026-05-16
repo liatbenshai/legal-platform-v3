@@ -48,8 +48,52 @@ export function DirectivesTab({
 
   const sorted = [...selectedSections].sort((a, b) => a.order - b.order)
 
+  const conflictsBySectionId = useMemo(() => {
+    const templateById = new Map<string, LibrarySection>()
+    for (const t of availableSections) templateById.set(t.sectionId, t)
+    const selectedTplIds = new Set(
+      selectedSections.map((s) => s.templateId).filter(Boolean) as string[]
+    )
+    const result = new Map<string, string[]>()
+    for (const sec of selectedSections) {
+      if (!sec.templateId) continue
+      const tpl = templateById.get(sec.templateId)
+      if (!tpl) continue
+      const conflicts: string[] = []
+      for (const conflictId of tpl.conflictsWith) {
+        if (conflictId === sec.templateId) continue
+        if (selectedTplIds.has(conflictId)) {
+          const conflictTpl = templateById.get(conflictId)
+          if (conflictTpl) conflicts.push(conflictTpl.title)
+        }
+      }
+      if (conflicts.length > 0) result.set(sec.id, conflicts)
+    }
+    return result
+  }, [availableSections, selectedSections])
+
+  const hasAnyConflict = conflictsBySectionId.size > 0
+
   return (
     <div>
+      {hasAnyConflict && (
+        <div
+          style={{
+            marginBottom: 12,
+            padding: '8px 10px',
+            backgroundColor: '#FEE2E2',
+            border: '0.5px solid #FCA5A5',
+            borderRight: '3px solid #DC2626',
+            borderRadius: 4,
+            fontSize: 12,
+            color: '#991B1B',
+            lineHeight: 1.5,
+          }}
+        >
+          <strong>⚠ זוהו סעיפים סותרים.</strong> חלק מהסעיפים שבחרת מכילים
+          הוראות הפוכות. כדאי להסיר אחד מהם לפני ייצוא המסמך.
+        </div>
+      )}
       <div style={{ marginBottom: 16 }}>
         <div
           style={{
@@ -75,17 +119,24 @@ export function DirectivesTab({
           </div>
         ) : (
           <ul className="space-y-1.5">
-            {sorted.map((s, idx) => (
+            {sorted.map((s, idx) => {
+              const conflictsForThis = conflictsBySectionId.get(s.id) ?? []
+              const hasConflict = conflictsForThis.length > 0
+              return (
               <li
                 key={s.id}
-                className="flex items-center justify-between gap-2"
                 style={{
                   padding: '8px 10px',
-                  backgroundColor: '#fff',
-                  border: '0.5px solid var(--border-default)',
+                  backgroundColor: hasConflict ? '#FFFBEB' : '#fff',
+                  border: '0.5px solid',
+                  borderColor: hasConflict ? '#FCA5A5' : 'var(--border-default)',
                   borderRadius: 4,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: hasConflict ? 4 : 0,
                 }}
               >
+              <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2 flex-1 min-w-0">
                   <span
                     className="flex items-center justify-center rounded-full"
@@ -101,9 +152,17 @@ export function DirectivesTab({
                     {idx + 1}
                   </span>
                   <span
-                    className="truncate"
+                    className="truncate flex items-center gap-1"
                     style={{ fontSize: 13, color: 'var(--text-primary)' }}
                   >
+                    {hasConflict && (
+                      <span
+                        title="סעיף סותר"
+                        style={{ color: '#DC2626', flexShrink: 0 }}
+                      >
+                        ⚠
+                      </span>
+                    )}
                     {s.title}
                   </span>
                 </div>
@@ -156,8 +215,22 @@ export function DirectivesTab({
                     ×
                   </button>
                 </div>
+              </div>
+              {hasConflict && (
+                <div
+                  style={{
+                    fontSize: 11,
+                    color: '#991B1B',
+                    paddingRight: 26,
+                    lineHeight: 1.4,
+                  }}
+                >
+                  סותר: {conflictsForThis.join(' · ')}
+                </div>
+              )}
               </li>
-            ))}
+              )
+            })}
           </ul>
         )}
       </div>

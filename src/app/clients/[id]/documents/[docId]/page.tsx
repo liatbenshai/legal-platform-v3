@@ -9,6 +9,7 @@ import { StepNavigation } from '@/components/editor/v2/StepNavigation'
 import { StepTabs, TABS, type TabId } from '@/components/editor/v2/StepTabs'
 import { TitleBar } from '@/components/editor/v2/TitleBar'
 import { AttorneysTab } from '@/components/editor/v2/tabs/AttorneysTab'
+import { DetailsTab } from '@/components/editor/v2/tabs/DetailsTab'
 import { DirectivesTab } from '@/components/editor/v2/tabs/DirectivesTab'
 import { PowersTab } from '@/components/editor/v2/tabs/PowersTab'
 import { PrincipalTab } from '@/components/editor/v2/tabs/PrincipalTab'
@@ -23,23 +24,26 @@ import { getDocument, updateDocument } from '@/lib/db/documents'
 import { getPersons } from '@/lib/db/persons'
 import { createClient } from '@/lib/db/supabase'
 import { getTemplates } from '@/lib/db/templates'
+import { buildDetailsSections } from '@/lib/engine/details-sections'
 import { dictionary as staticDictionary } from '@/lib/engine/dictionary'
-import { renderDocument } from '@/lib/engine/renderer'
+import { extractPlaceholders, renderDocument } from '@/lib/engine/renderer'
 import { exportToWord } from '@/lib/export/word'
 import { useUser } from '@/lib/hooks/useUser'
 import {
   sectionLibrary,
   type LibrarySection,
 } from '@/lib/sections/library'
-import type {
-  Client,
-  Document,
-  DocumentActor,
-  DocumentSection,
-  DocumentStatus,
-  DocumentType,
-  Person,
-  SectionTemplate,
+import {
+  EMPTY_DETAILS,
+  type Client,
+  type Document,
+  type DocumentActor,
+  type DocumentDetails,
+  type DocumentSection,
+  type DocumentStatus,
+  type DocumentType,
+  type Person,
+  type SectionTemplate,
 } from '@/lib/types'
 
 const ALL_DOMAINS: DocumentType[] = [
@@ -61,6 +65,10 @@ const STEP_META: Record<TabId, { title: string; description: string }> = {
     title: 'סמכויות',
     description: 'באילו תחומים מיופה הכוח מוסמך לפעול.',
   },
+  details: {
+    title: 'פרטים',
+    description: 'נכסים, רכוש פיננסי, רופאים והעדפות אישיות.',
+  },
   directives: {
     title: 'הנחיות מקדימות',
     description: 'בחרי סעיפים שמפרטים איך לפעול במצבים שונים.',
@@ -72,6 +80,28 @@ const STEP_META: Record<TabId, { title: string; description: string }> = {
 }
 
 type SaveStatus = 'idle' | 'saving' | 'saved' | 'error'
+
+const DETAILS_KEY = '__details_json'
+
+function parseDetails(variables: Record<string, string>): DocumentDetails {
+  const raw = variables[DETAILS_KEY]
+  if (!raw) return EMPTY_DETAILS
+  try {
+    const parsed = JSON.parse(raw) as Partial<DocumentDetails>
+    return {
+      ...EMPTY_DETAILS,
+      ...parsed,
+      bankAccounts: parsed.bankAccounts ?? [],
+      properties: parsed.properties ?? [],
+      financialAssets: parsed.financialAssets ?? [],
+      doctors: parsed.doctors ?? [],
+      dietaryPreferences: parsed.dietaryPreferences ?? '',
+      specialRequests: parsed.specialRequests ?? '',
+    }
+  } catch {
+    return EMPTY_DETAILS
+  }
+}
 
 function parseDomains(variables: Record<string, string>): DocumentType[] {
   const raw = variables['domains']
@@ -291,6 +321,42 @@ export default function DocumentEditorPage() {
     [document]
   )
 
+  const details = useMemo(
+    () => (document ? parseDetails(document.variables) : EMPTY_DETAILS),
+    [document]
+  )
+
+  function handleDetailsChange(next: DocumentDetails) {
+    applyChange((doc) => ({
+      ...doc,
+      variables: {
+        ...doc.variables,
+        [DETAILS_KEY]: JSON.stringify(next),
+      },
+    }))
+  }
+
+  const customVariableKeys = useMemo(() => {
+    if (!document) return [] as string[]
+    const reserved = new Set(['domains', DETAILS_KEY])
+    const found = new Set<string>()
+    for (const section of document.sections) {
+      for (const key of extractPlaceholders(section.content)) {
+        if (key.includes('.')) continue
+        if (reserved.has(key)) continue
+        found.add(key)
+      }
+    }
+    return Array.from(found).sort()
+  }, [document])
+
+  function handleVariableChange(key: string, value: string) {
+    applyChange((doc) => ({
+      ...doc,
+      variables: { ...doc.variables, [key]: value },
+    }))
+  }
+
   const availableSections = useMemo(
     () =>
       [...sectionLibrary, ...userSections].filter((s) =>
@@ -301,12 +367,14 @@ export default function DocumentEditorPage() {
 
   const rendered = useMemo(() => {
     if (!document) return []
-    return renderDocument({
+    const fromTemplates = renderDocument({
       document,
       persons,
       dictionary: mergedDictionary,
     })
-  }, [document, persons, mergedDictionary])
+    const fromDetails = buildDetailsSections(details)
+    return [...fromDetails, ...fromTemplates]
+  }, [document, persons, mergedDictionary, details])
 
   function handlePersonCreated(p: Person) {
     setPersons((curr) => [...curr, p])
@@ -369,10 +437,15 @@ export default function DocumentEditorPage() {
     applyChange((doc) => ({ ...doc, status }))
   }
 
+  const hasContent = useMemo(
+    () => document !== null && (document.sections.length > 0 || rendered.length > 0),
+    [document, rendered]
+  )
+
   async function handleExport() {
     if (!document) return
-    if (document.sections.length === 0) {
-      setExportError('המסמך ריק. בחרי לפחות סעיף אחד.')
+    if (!hasContent) {
+      setExportError('המסמך ריק. בחרי לפחות סעיף אחד או הזיני פרטים.')
       return
     }
     setIsExporting(true)
@@ -382,6 +455,7 @@ export default function DocumentEditorPage() {
         document,
         persons,
         dictionary: mergedDictionary,
+        details,
       })
     } catch {
       setExportError('שגיאה בייצוא. נסי שוב.')
@@ -471,7 +545,7 @@ export default function DocumentEditorPage() {
         openedAt={document.createdAt}
         onExport={handleExport}
         isExporting={isExporting}
-        canExport={document.sections.length > 0}
+        canExport={hasContent}
       />
       <StepTabs activeId={activeTab} onChange={setActiveTab} />
 
@@ -523,6 +597,15 @@ export default function DocumentEditorPage() {
               onToggle={handleDomainToggle}
             />
           )}
+          {activeTab === 'details' && (
+            <DetailsTab
+              details={details}
+              onChange={handleDetailsChange}
+              customVariableKeys={customVariableKeys}
+              variables={document.variables}
+              onVariableChange={handleVariableChange}
+            />
+          )}
           {activeTab === 'directives' && (
             <DirectivesTab
               availableSections={availableSections}
@@ -554,7 +637,7 @@ export default function DocumentEditorPage() {
             <StepNavigation
               onPrev={handlePrev}
               onNext={handleNext}
-              prevDisabled={activeTab === 'principal'}
+                prevDisabled={activeTab === 'principal'}
               nextDisabled={activeTab === 'signature'}
             />
           </div>
