@@ -2,11 +2,18 @@
 
 import { useMemo, useState } from 'react'
 import { InfoTip } from '@/components/editor/v2/InfoTip'
+import { extractPlaceholders } from '@/lib/engine/renderer'
 import {
   CATEGORY_LABELS,
   type LibrarySection,
 } from '@/lib/sections/library'
 import type { DocumentSection, DocumentType } from '@/lib/types'
+
+const RESERVED_VARIABLE_KEYS = new Set(['domains', '__details_json'])
+
+function humanizeKey(key: string): string {
+  return key.replace(/_/g, ' ')
+}
 
 interface DirectivesTabProps {
   availableSections: LibrarySection[]
@@ -15,6 +22,9 @@ interface DirectivesTabProps {
   onRemove: (sectionId: string) => void
   onMoveUp: (sectionId: string) => void
   onMoveDown: (sectionId: string) => void
+  onContentChange: (sectionId: string, content: string) => void
+  onVariableChange: (key: string, value: string) => void
+  variables: Record<string, string>
   allowedDomains: DocumentType[]
 }
 
@@ -25,7 +35,11 @@ export function DirectivesTab({
   onRemove,
   onMoveUp,
   onMoveDown,
+  onContentChange,
+  onVariableChange,
+  variables,
 }: DirectivesTabProps) {
+  const [editingId, setEditingId] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
   const selectedTemplateIds = useMemo(
     () =>
@@ -202,6 +216,30 @@ export function DirectivesTab({
                   </button>
                   <button
                     type="button"
+                    onClick={() =>
+                      setEditingId(editingId === s.id ? null : s.id)
+                    }
+                    aria-label={editingId === s.id ? 'סגור עריכה' : 'ערוך'}
+                    title={editingId === s.id ? 'סגור עריכה' : 'ערוך תוכן'}
+                    style={{
+                      fontSize: 11,
+                      padding: '2px 6px',
+                      border: '0.5px solid var(--border-hover)',
+                      borderRadius: 3,
+                      color:
+                        editingId === s.id
+                          ? 'var(--color-primary)'
+                          : 'var(--text-secondary)',
+                      backgroundColor:
+                        editingId === s.id
+                          ? 'var(--color-primary-light)'
+                          : '#fff',
+                    }}
+                  >
+                    ✎
+                  </button>
+                  <button
+                    type="button"
                     onClick={() => onRemove(s.id)}
                     aria-label="הסר"
                     style={{
@@ -216,6 +254,13 @@ export function DirectivesTab({
                   </button>
                 </div>
               </div>
+              <SectionInlineDetails
+                section={s}
+                isEditing={editingId === s.id}
+                variables={variables}
+                onContentChange={(content) => onContentChange(s.id, content)}
+                onVariableChange={onVariableChange}
+              />
               {hasConflict && (
                 <div
                   style={{
@@ -338,9 +383,142 @@ export function DirectivesTab({
 
       <div style={{ marginTop: 16 }}>
         <InfoTip>
-          כל סעיף שתוסיפי יופיע מיד בתצוגה המקדימה משמאל עם ההטיות הנכונות.
+          כל סעיף שתוסיפי יופיע מיד בתצוגה המקדימה משמאל עם ההטיות הנכונות. לחצי
+          על ✎ ליד סעיף נבחר כדי לערוך את התוכן או למלא שדות חסרים.
         </InfoTip>
       </div>
+    </div>
+  )
+}
+
+interface SectionInlineDetailsProps {
+  section: DocumentSection
+  isEditing: boolean
+  variables: Record<string, string>
+  onContentChange: (content: string) => void
+  onVariableChange: (key: string, value: string) => void
+}
+
+function SectionInlineDetails({
+  section,
+  isEditing,
+  variables,
+  onContentChange,
+  onVariableChange,
+}: SectionInlineDetailsProps) {
+  const sectionVarKeys = useMemo(() => {
+    const found = new Set<string>()
+    for (const key of extractPlaceholders(section.content)) {
+      if (key.includes('.')) continue
+      if (RESERVED_VARIABLE_KEYS.has(key)) continue
+      found.add(key)
+    }
+    return Array.from(found).sort()
+  }, [section.content])
+
+  if (!isEditing && sectionVarKeys.length === 0) return null
+
+  return (
+    <div
+      style={{
+        marginTop: 6,
+        paddingTop: 8,
+        borderTop: '0.5px dashed var(--border-default)',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 8,
+      }}
+    >
+      {isEditing && (
+        <div>
+          <label
+            style={{
+              display: 'block',
+              fontSize: 11,
+              color: 'var(--text-secondary)',
+              marginBottom: 4,
+            }}
+          >
+            תוכן הסעיף (ניתן לערוך)
+          </label>
+          <textarea
+            value={section.content}
+            onChange={(e) => onContentChange(e.target.value)}
+            rows={Math.max(6, Math.min(20, section.content.split('\n').length + 1))}
+            style={{
+              width: '100%',
+              fontSize: 12,
+              padding: '8px 10px',
+              border: '0.5px solid var(--border-hover)',
+              borderRadius: 4,
+              fontFamily: 'inherit',
+              lineHeight: 1.5,
+              resize: 'vertical',
+              backgroundColor: '#fff',
+              color: 'var(--text-primary)',
+            }}
+          />
+          <div
+            style={{
+              marginTop: 4,
+              fontSize: 10,
+              color: 'var(--text-muted)',
+            }}
+          >
+            השתמשי ב-{`{{actor.word}}`} להטיות לפי מגדר (למשל {`{{מיופה.יבחר}}`}), או ב-{`{{שם_משתנה}}`} למשתנה שתמלאי למטה.
+          </div>
+        </div>
+      )}
+
+      {sectionVarKeys.length > 0 && (
+        <div>
+          {isEditing && (
+            <div
+              style={{
+                fontSize: 11,
+                fontWeight: 500,
+                color: 'var(--text-secondary)',
+                marginBottom: 6,
+              }}
+            >
+              משתנים בסעיף זה
+            </div>
+          )}
+          <div className="space-y-1.5">
+            {sectionVarKeys.map((key) => (
+              <div key={key}>
+                <label
+                  style={{
+                    display: 'block',
+                    fontSize: 11,
+                    color: 'var(--text-secondary)',
+                    marginBottom: 2,
+                  }}
+                >
+                  {humanizeKey(key)}
+                </label>
+                <input
+                  type="text"
+                  value={variables[key] ?? ''}
+                  onChange={(e) => onVariableChange(key, e.target.value)}
+                  placeholder={`{{${key}}}`}
+                  style={{
+                    width: '100%',
+                    fontSize: 12,
+                    padding: '6px 8px',
+                    border: '0.5px solid var(--border-hover)',
+                    borderRadius: 3,
+                    backgroundColor: variables[key]
+                      ? '#fff'
+                      : 'var(--color-accent-bg)',
+                    color: 'var(--text-primary)',
+                  }}
+                />
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

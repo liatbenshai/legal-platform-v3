@@ -26,7 +26,7 @@ import { createClient } from '@/lib/db/supabase'
 import { getTemplates } from '@/lib/db/templates'
 import { buildDetailsSections } from '@/lib/engine/details-sections'
 import { dictionary as staticDictionary } from '@/lib/engine/dictionary'
-import { extractPlaceholders, renderDocument } from '@/lib/engine/renderer'
+import { renderDocument } from '@/lib/engine/renderer'
 import { exportToWord } from '@/lib/export/word'
 import { useUser } from '@/lib/hooks/useUser'
 import {
@@ -336,20 +336,6 @@ export default function DocumentEditorPage() {
     }))
   }
 
-  const customVariableKeys = useMemo(() => {
-    if (!document) return [] as string[]
-    const reserved = new Set(['domains', DETAILS_KEY])
-    const found = new Set<string>()
-    for (const section of document.sections) {
-      for (const key of extractPlaceholders(section.content)) {
-        if (key.includes('.')) continue
-        if (reserved.has(key)) continue
-        found.add(key)
-      }
-    }
-    return Array.from(found).sort()
-  }, [document])
-
   function handleVariableChange(key: string, value: string) {
     applyChange((doc) => ({
       ...doc,
@@ -417,6 +403,15 @@ export default function DocumentEditorPage() {
       sections: doc.sections
         .filter((s) => s.id !== sectionId)
         .map((s, idx) => ({ ...s, order: idx })),
+    }))
+  }
+
+  function handleSectionContentChange(sectionId: string, content: string) {
+    applyChange((doc) => ({
+      ...doc,
+      sections: doc.sections.map((s) =>
+        s.id === sectionId ? { ...s, content } : s
+      ),
     }))
   }
 
@@ -601,9 +596,6 @@ export default function DocumentEditorPage() {
             <DetailsTab
               details={details}
               onChange={handleDetailsChange}
-              customVariableKeys={customVariableKeys}
-              variables={document.variables}
-              onVariableChange={handleVariableChange}
             />
           )}
           {activeTab === 'directives' && (
@@ -614,6 +606,9 @@ export default function DocumentEditorPage() {
               onRemove={handleRemoveSection}
               onMoveUp={(id) => handleMoveSection(id, -1)}
               onMoveDown={(id) => handleMoveSection(id, 1)}
+              onContentChange={handleSectionContentChange}
+              onVariableChange={handleVariableChange}
+              variables={document.variables}
               allowedDomains={allowedDomains}
             />
           )}

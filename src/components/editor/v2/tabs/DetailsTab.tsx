@@ -15,29 +15,16 @@ import type {
 interface DetailsTabProps {
   details: DocumentDetails
   onChange: (next: DocumentDetails) => void
-  customVariableKeys: string[]
-  variables: Record<string, string>
-  onVariableChange: (key: string, value: string) => void
 }
 
-type GroupId =
-  | 'assets'
-  | 'financial'
-  | 'medical'
-  | 'preferences'
-  | 'variables'
+type GroupId = 'assets' | 'financial' | 'medical' | 'preferences'
 
 const GROUPS: Array<{ id: GroupId; label: string; icon: string }> = [
   { id: 'assets', label: 'נכסים', icon: 'ti-building-bank' },
   { id: 'financial', label: 'רכוש פיננסי', icon: 'ti-coin' },
   { id: 'medical', label: 'רפואה', icon: 'ti-stethoscope' },
   { id: 'preferences', label: 'העדפות אישיות', icon: 'ti-heart' },
-  { id: 'variables', label: 'משתנים מותאמים', icon: 'ti-variable' },
 ]
-
-function humanizeKey(key: string): string {
-  return key.replace(/_/g, ' ')
-}
 
 const PROPERTY_STATUSES: PropertyStatus[] = ['מגורים', 'השקעה', 'השכרה']
 
@@ -105,19 +92,12 @@ const rowStyle: React.CSSProperties = {
   marginBottom: 6,
 }
 
-export function DetailsTab({
-  details,
-  onChange,
-  customVariableKeys,
-  variables,
-  onVariableChange,
-}: DetailsTabProps) {
+export function DetailsTab({ details, onChange }: DetailsTabProps) {
   const [open, setOpen] = useState<Record<GroupId, boolean>>({
     assets: true,
     financial: false,
     medical: false,
     preferences: false,
-    variables: customVariableKeys.length > 0,
   })
 
   function toggle(id: GroupId) {
@@ -228,13 +208,9 @@ export function DetailsTab({
     })
   }
 
-  const visibleGroups = GROUPS.filter(
-    (g) => g.id !== 'variables' || customVariableKeys.length > 0
-  )
-
   return (
     <div>
-      {visibleGroups.map((g) => {
+      {GROUPS.map((g) => {
         const isOpen = open[g.id]
         return (
           <div
@@ -312,13 +288,6 @@ export function DetailsTab({
                     onChangeSpecial={(v) =>
                       onChange({ ...details, specialRequests: v })
                     }
-                  />
-                )}
-                {g.id === 'variables' && (
-                  <CustomVariablesGroup
-                    keys={customVariableKeys}
-                    values={variables}
-                    onChange={onVariableChange}
                   />
                 )}
               </div>
@@ -678,55 +647,6 @@ function SectionLabel({
       }}
     >
       {children}
-    </div>
-  )
-}
-
-interface CustomVariablesGroupProps {
-  keys: string[]
-  values: Record<string, string>
-  onChange: (key: string, value: string) => void
-}
-
-function CustomVariablesGroup({
-  keys,
-  values,
-  onChange,
-}: CustomVariablesGroupProps) {
-  return (
-    <div>
-      <div
-        style={{
-          fontSize: 11,
-          color: 'var(--text-muted)',
-          marginBottom: 8,
-          lineHeight: 1.5,
-        }}
-      >
-        משתנים שזוהו אוטומטית בסעיפים הנבחרים. הערך שתזיני יחליף את הפלייסהולדר בתצוגה ובייצוא.
-      </div>
-      {keys.map((key) => (
-        <div key={key} style={{ marginBottom: 10 }}>
-          <label
-            style={{
-              display: 'block',
-              fontSize: 12,
-              fontWeight: 500,
-              color: 'var(--text-secondary)',
-              marginBottom: 4,
-            }}
-          >
-            {humanizeKey(key)}
-          </label>
-          <input
-            type="text"
-            value={values[key] ?? ''}
-            onChange={(e) => onChange(key, e.target.value)}
-            placeholder={`{{${key}}}`}
-            style={fieldStyle}
-          />
-        </div>
-      ))}
     </div>
   )
 }
