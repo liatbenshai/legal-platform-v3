@@ -316,8 +316,16 @@ export async function exportToWord(opts: ExportOptions): Promise<void> {
     styles: {
       default: {
         document: {
-          run: { font: FONT, size: SIZE_BODY, rightToLeft: true },
-          paragraph: { spacing: { line: LINE_SPACING } },
+          run: {
+            font: FONT,
+            size: SIZE_BODY,
+            rightToLeft: true,
+            language: { value: 'he-IL', bidirectional: 'he-IL' },
+          },
+          paragraph: {
+            spacing: { line: LINE_SPACING },
+            alignment: AlignmentType.RIGHT,
+          },
         },
       },
     },
