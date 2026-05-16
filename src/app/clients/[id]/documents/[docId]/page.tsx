@@ -15,8 +15,27 @@ import type {
   ActorRole,
   Document,
   DocumentSection,
+  DocumentType,
   Person,
 } from '@/lib/types'
+
+const ALL_DOMAINS: DocumentType[] = [
+  'poa-property',
+  'poa-personal',
+  'poa-medical',
+]
+
+function parseDomains(variables: Record<string, string>): DocumentType[] {
+  const raw = variables['domains']
+  if (!raw) return ALL_DOMAINS
+  const parsed = raw
+    .split(',')
+    .map((d) => d.trim())
+    .filter((d): d is DocumentType =>
+      (ALL_DOMAINS as string[]).includes(d)
+    )
+  return parsed.length > 0 ? parsed : ALL_DOMAINS
+}
 
 type SaveStatus = 'idle' | 'saving' | 'saved' | 'error'
 
@@ -135,6 +154,19 @@ export default function DocumentEditorPage() {
             .filter(Boolean) as string[])
         : [],
     [document]
+  )
+
+  const allowedDomains = useMemo(
+    () => (document ? parseDomains(document.variables) : ALL_DOMAINS),
+    [document]
+  )
+
+  const availableSections = useMemo(
+    () =>
+      sectionLibrary.filter((s) =>
+        s.documentTypes.some((t) => allowedDomains.includes(t))
+      ),
+    [allowedDomains]
   )
 
   function applyChange(updater: (doc: Document) => Document) {
@@ -258,7 +290,7 @@ export default function DocumentEditorPage() {
       <div className="max-w-7xl mx-auto px-6 py-6">
         <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr_1fr] gap-4 h-[calc(100vh-180px)]">
           <SectionLibrary
-            sections={sectionLibrary}
+            sections={availableSections}
             selectedTemplateIds={selectedTemplateIds}
             onAdd={handleAdd}
           />

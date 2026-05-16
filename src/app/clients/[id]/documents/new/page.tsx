@@ -10,11 +10,19 @@ import { createClient } from '@/lib/db/supabase'
 import { useUser } from '@/lib/hooks/useUser'
 import type { DocumentType, Person } from '@/lib/types'
 
-const DOC_TYPE_OPTIONS: Array<{ value: DocumentType; label: string }> = [
-  { value: 'poa-property', label: 'ייפוי כוח מתמשך' },
+const DOMAIN_OPTIONS: Array<{ value: DocumentType; label: string }> = [
+  { value: 'poa-property', label: 'רכושי' },
+  { value: 'poa-personal', label: 'אישי' },
+  { value: 'poa-medical', label: 'רפואי' },
 ]
 
 type Step = 1 | 2 | 3
+
+function deriveAttorneyTitle(persons: Person[]): string {
+  if (persons.length === 0) return '—'
+  if (persons.length > 1) return 'מיופי הכוח'
+  return persons[0].gender === 'female' ? 'מיופת הכוח' : 'מיופה הכוח'
+}
 
 export default function NewDocumentPage() {
   const params = useParams<{ id: string }>()
@@ -26,9 +34,11 @@ export default function NewDocumentPage() {
   const [isLoadingPersons, setIsLoadingPersons] = useState(true)
 
   const [step, setStep] = useState<Step>(1)
-  const [docType, setDocType] = useState<DocumentType>('poa-property')
   const [principalIds, setPrincipalIds] = useState<string[]>([])
   const [attorneyIds, setAttorneyIds] = useState<string[]>([])
+  const [selectedDomains, setSelectedDomains] = useState<DocumentType[]>([
+    'poa-property',
+  ])
   const [isCreating, setIsCreating] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -64,10 +74,15 @@ export default function NewDocumentPage() {
     [persons, attorneyIds]
   )
 
+  const attorneyTitle = useMemo(
+    () => deriveAttorneyTitle(attorneys),
+    [attorneys]
+  )
+
   const canGoNext =
-    (step === 1 && Boolean(docType)) ||
-    (step === 2 && principalIds.length === 1) ||
-    (step === 3 && attorneyIds.length >= 1)
+    (step === 1 && principalIds.length === 1) ||
+    (step === 2 && attorneyIds.length >= 1) ||
+    (step === 3 && selectedDomains.length >= 1)
 
   function handleNext() {
     if (step < 3) setStep((s) => (s + 1) as Step)
@@ -77,18 +92,34 @@ export default function NewDocumentPage() {
     if (step > 1) setStep((s) => (s - 1) as Step)
   }
 
+  function toggleDomain(domain: DocumentType) {
+    setSelectedDomains((curr) =>
+      curr.includes(domain)
+        ? curr.filter((d) => d !== domain)
+        : [...curr, domain]
+    )
+  }
+
   async function handleCreate() {
-    if (!user || !principal || attorneys.length === 0) return
+    if (
+      !user ||
+      !principal ||
+      attorneys.length === 0 ||
+      selectedDomains.length === 0
+    ) {
+      return
+    }
     setIsCreating(true)
     setError(null)
     try {
       const supabase = createClient()
       const title = `ייפוי כוח - ${principal.firstName} ${principal.lastName}`
+      const primaryType = selectedDomains[0]
       const newDoc = await createDocument(
         supabase,
         clientId,
         user.id,
-        docType,
+        primaryType,
         title
       )
       const updated = await updateDocument(supabase, newDoc.id, {
@@ -98,7 +129,10 @@ export default function NewDocumentPage() {
           { role: 'ממנה', personIds: principalIds },
           { role: 'מיופה', personIds: attorneyIds },
         ],
-        variables: newDoc.variables,
+        variables: {
+          ...newDoc.variables,
+          domains: selectedDomains.join(','),
+        },
         sections: newDoc.sections,
       })
       router.push(`/clients/${clientId}/documents/${updated.id}`)
@@ -154,7 +188,9 @@ export default function NewDocumentPage() {
     <main className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
       <header className="bg-white border-b border-slate-200">
         <div className="max-w-3xl mx-auto px-6 py-4 flex items-center justify-between">
-          <h1 className="text-xl font-bold text-slate-800">מסמך חדש</h1>
+          <h1 className="text-xl font-bold text-slate-800">
+            ייפוי כוח מתמשך - מסמך חדש
+          </h1>
           <Link
             href={`/clients/${clientId}`}
             className="text-sm text-slate-600 hover:text-slate-900"
@@ -203,35 +239,6 @@ export default function NewDocumentPage() {
           {step === 1 && (
             <>
               <h2 className="text-xl font-bold text-slate-800 mb-2">
-                סוג המסמך
-              </h2>
-              <p className="text-sm text-slate-500 mb-6">
-                בחר/י את סוג המסמך שברצונך ליצור.
-              </p>
-              <label
-                htmlFor="docType"
-                className="block text-sm font-medium text-slate-700 mb-1"
-              >
-                סוג מסמך
-              </label>
-              <select
-                id="docType"
-                value={docType}
-                onChange={(e) => setDocType(e.target.value as DocumentType)}
-                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                {DOC_TYPE_OPTIONS.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
-            </>
-          )}
-
-          {step === 2 && (
-            <>
-              <h2 className="text-xl font-bold text-slate-800 mb-2">
                 בחירת ממנה
               </h2>
               <p className="text-sm text-slate-500 mb-6">
@@ -246,7 +253,7 @@ export default function NewDocumentPage() {
             </>
           )}
 
-          {step === 3 && (
+          {step === 2 && (
             <>
               <h2 className="text-xl font-bold text-slate-800 mb-2">
                 בחירת מיופי כוח
@@ -262,38 +269,93 @@ export default function NewDocumentPage() {
                 excludeIds={principalIds}
               />
 
+              {attorneys.length > 0 && (
+                <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm">
+                  <strong className="text-blue-900">תפקיד במסמך:</strong>{' '}
+                  <span className="text-blue-800">{attorneyTitle}</span>
+                  <span className="text-blue-600 text-xs mr-2">
+                    ({attorneys.length === 1 ? 'יחיד/ה' : `${attorneys.length} אנשים`})
+                  </span>
+                </div>
+              )}
+            </>
+          )}
+
+          {step === 3 && (
+            <>
+              <h2 className="text-xl font-bold text-slate-800 mb-2">
+                תחומי האחריות
+              </h2>
+              <p className="text-sm text-slate-500 mb-6">
+                בחר/י אילו תחומים הייפוי כוח יכלול. ניתן לבחור יותר מאחד.
+              </p>
+
+              <div className="space-y-2">
+                {DOMAIN_OPTIONS.map((opt) => {
+                  const isSelected = selectedDomains.includes(opt.value)
+                  return (
+                    <label
+                      key={opt.value}
+                      className={`flex items-center gap-3 p-3 border rounded-lg cursor-pointer transition-colors ${
+                        isSelected
+                          ? 'border-blue-500 bg-blue-50'
+                          : 'border-slate-200 hover:bg-slate-50'
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={() => toggleDomain(opt.value)}
+                        className="w-4 h-4 flex-shrink-0"
+                      />
+                      <span className="font-medium text-slate-800">
+                        {opt.label}
+                      </span>
+                    </label>
+                  )
+                })}
+              </div>
+
               <div className="mt-8 pt-6 border-t border-slate-200">
                 <h3 className="text-base font-semibold text-slate-800 mb-3">
                   סקירה לפני יצירה
                 </h3>
                 <dl className="space-y-2 text-sm">
                   <div className="flex gap-2">
-                    <dt className="font-medium text-slate-600 min-w-[6rem]">
-                      סוג:
-                    </dt>
-                    <dd className="text-slate-800">
-                      {DOC_TYPE_OPTIONS.find((o) => o.value === docType)?.label}
-                    </dd>
-                  </div>
-                  <div className="flex gap-2">
-                    <dt className="font-medium text-slate-600 min-w-[6rem]">
+                    <dt className="font-medium text-slate-600 min-w-[7rem]">
                       ממנה:
                     </dt>
                     <dd className="text-slate-800">
                       {principal
-                        ? `${principal.firstName} ${principal.lastName}`
+                        ? `${principal.firstName} ${principal.lastName} (${principal.gender === 'female' ? 'נקבה' : 'זכר'})`
                         : '-'}
                     </dd>
                   </div>
                   <div className="flex gap-2">
-                    <dt className="font-medium text-slate-600 min-w-[6rem]">
-                      מיופי כוח:
+                    <dt className="font-medium text-slate-600 min-w-[7rem]">
+                      {attorneyTitle}:
                     </dt>
                     <dd className="text-slate-800">
                       {attorneys.length === 0
                         ? '-'
                         : attorneys
                             .map((a) => `${a.firstName} ${a.lastName}`)
+                            .join(', ')}
+                    </dd>
+                  </div>
+                  <div className="flex gap-2">
+                    <dt className="font-medium text-slate-600 min-w-[7rem]">
+                      תחומים:
+                    </dt>
+                    <dd className="text-slate-800">
+                      {selectedDomains.length === 0
+                        ? '-'
+                        : selectedDomains
+                            .map(
+                              (d) =>
+                                DOMAIN_OPTIONS.find((o) => o.value === d)?.label
+                            )
+                            .filter(Boolean)
                             .join(', ')}
                     </dd>
                   </div>
