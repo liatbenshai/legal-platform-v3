@@ -5,8 +5,10 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { logoutAction } from '@/lib/auth/actions'
 import { getClients } from '@/lib/db/clients'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import {
   createDocument,
+  deleteDocument,
   getAllUserDocuments,
   type DocumentWithClient,
 } from '@/lib/db/documents'
@@ -54,6 +56,9 @@ export default function DashboardPage() {
   const [newDocType, setNewDocType] = useState<DocumentType | null>(null)
   const [newDocClientId, setNewDocClientId] = useState<string>('')
   const [isCreating, setIsCreating] = useState(false)
+  const [docToDelete, setDocToDelete] =
+    useState<DocumentWithClient | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
 
   const load = useCallback(async () => {
     if (!user) return
@@ -89,6 +94,20 @@ export default function DashboardPage() {
       return true
     })
   }, [documents, typeFilter, statusFilter])
+
+  async function handleDeleteDocument() {
+    if (!docToDelete) return
+    setIsDeleting(true)
+    try {
+      await deleteDocument(supabase, docToDelete.id)
+      setDocuments((prev) => prev.filter((d) => d.id !== docToDelete.id))
+      setDocToDelete(null)
+    } catch {
+      setError('שגיאה במחיקת המסמך')
+    } finally {
+      setIsDeleting(false)
+    }
+  }
 
   async function handleCreateDocument() {
     if (!user || !newDocType || !newDocClientId) return
@@ -376,8 +395,46 @@ export default function DashboardPage() {
               const statusStyle = STATUS_STYLES[d.status]
               const typeLabel = DOC_TYPE_CONFIGS[d.type]?.label ?? d.type
               return (
-                <Link
-                  key={d.id}
+                <div key={d.id} style={{ position: 'relative' }}>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault()
+                      e.stopPropagation()
+                      setDocToDelete(d)
+                    }}
+                    aria-label={`מחק את ${d.title}`}
+                    title="מחק מסמך"
+                    style={{
+                      position: 'absolute',
+                      top: 10,
+                      left: 10,
+                      width: 24,
+                      height: 24,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: 'var(--text-muted)',
+                      backgroundColor: 'transparent',
+                      border: 'none',
+                      borderRadius: 4,
+                      fontSize: 16,
+                      lineHeight: 1,
+                      cursor: 'pointer',
+                      zIndex: 2,
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.color = '#DC2626'
+                      e.currentTarget.style.backgroundColor = '#FEE2E2'
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.color = 'var(--text-muted)'
+                      e.currentTarget.style.backgroundColor = 'transparent'
+                    }}
+                  >
+                    ×
+                  </button>
+                  <Link
                   href={`/clients/${d.clientId}/documents/${d.id}`}
                   style={{
                     display: 'block',
@@ -391,7 +448,7 @@ export default function DashboardPage() {
                   }}
                   className="hover:border-stone-400 hover:-translate-y-0.5"
                 >
-                  <div className="flex items-start justify-between gap-2 mb-3">
+                  <div className="flex items-start justify-between gap-2 mb-3" style={{ paddingLeft: 22 }}>
                     <span
                       style={{
                         fontSize: 11,
@@ -456,11 +513,27 @@ export default function DashboardPage() {
                     </span>
                   </div>
                 </Link>
+                </div>
               )
             })}
           </div>
         )}
       </div>
+
+      <ConfirmDialog
+        open={Boolean(docToDelete)}
+        title="מחיקת מסמך"
+        message={
+          docToDelete
+            ? `למחוק את "${docToDelete.title}"? פעולה זו לא ניתנת לשחזור.`
+            : ''
+        }
+        confirmLabel="מחק"
+        destructive
+        isProcessing={isDeleting}
+        onConfirm={handleDeleteDocument}
+        onCancel={() => setDocToDelete(null)}
+      />
 
       {isNewDocOpen && (
         <div

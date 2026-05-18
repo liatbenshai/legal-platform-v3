@@ -6,6 +6,7 @@ import { SectionEditor } from '@/components/library/SectionEditor'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { deleteUserTemplate, getTemplates } from '@/lib/db/templates'
 import { createClient } from '@/lib/db/supabase'
+import { useHiddenSections } from '@/lib/hooks/useHiddenSections'
 import { useUser } from '@/lib/hooks/useUser'
 import {
   CATEGORY_LABELS,
@@ -68,6 +69,8 @@ export default function LibraryPage() {
   const [category, setCategory] = useState<DocumentType | 'all'>('all')
   const [showSystem, setShowSystem] = useState(true)
   const [showUser, setShowUser] = useState(true)
+  const [showHidden, setShowHidden] = useState(false)
+  const { hiddenIds, hide, unhide, isHidden } = useHiddenSections()
 
   const [editorOpen, setEditorOpen] = useState(false)
   const [previewSection, setPreviewSection] = useState<UnifiedSection | null>(
@@ -136,6 +139,11 @@ export default function LibraryPage() {
     const term = searchTerm.trim().toLowerCase()
     return allSections.filter((s) => {
       if (category !== 'all' && s.category !== category) return false
+      if (s.isSystem) {
+        const sectionId = s.id.replace(/^system-/, '')
+        const hidden = isHidden(sectionId)
+        if (hidden && !showHidden) return false
+      }
       if (!term) return true
       const haystack = [
         s.title,
@@ -147,7 +155,7 @@ export default function LibraryPage() {
         .toLowerCase()
       return haystack.includes(term)
     })
-  }, [allSections, searchTerm, category])
+  }, [allSections, searchTerm, category, isHidden, showHidden])
 
   const inputStyle: React.CSSProperties = {
     padding: '9px 12px',
@@ -259,6 +267,18 @@ export default function LibraryPage() {
                   style={{ width: 14, height: 14 }}
                 />
                 <span>שלי</span>
+              </label>
+              <label
+                className="flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
+                title={`כרגע ${hiddenIds.size} סעיפי מערכת מוסתרים`}
+              >
+                <input
+                  type="checkbox"
+                  checked={showHidden}
+                  onChange={(e) => setShowHidden(e.target.checked)}
+                  style={{ width: 14, height: 14 }}
+                />
+                <span>הצג מוסתרים ({hiddenIds.size})</span>
               </label>
             </div>
             <button
@@ -447,6 +467,61 @@ export default function LibraryPage() {
                     ×
                   </button>
                 )}
+                {s.isSystem && (() => {
+                  const sectionId = s.id.replace(/^system-/, '')
+                  const isCurrentlyHidden = isHidden(sectionId)
+                  return (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        isCurrentlyHidden ? unhide(sectionId) : hide(sectionId)
+                      }
+                      aria-label={
+                        isCurrentlyHidden
+                          ? `החזר את ${s.title}`
+                          : `הסתר את ${s.title}`
+                      }
+                      title={isCurrentlyHidden ? 'החזר מהמוסתרים' : 'הסתר סעיף'}
+                      className="absolute"
+                      style={{
+                        top: 12,
+                        left: 12,
+                        width: 24,
+                        height: 24,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: isCurrentlyHidden
+                          ? 'var(--color-accent)'
+                          : 'var(--text-muted)',
+                        backgroundColor: 'transparent',
+                        border: 'none',
+                        borderRadius: 4,
+                        fontSize: 14,
+                        lineHeight: 1,
+                      }}
+                    >
+                      {isCurrentlyHidden ? '↩' : '×'}
+                    </button>
+                  )
+                })()}
+                {s.isSystem && (() => {
+                  const sectionId = s.id.replace(/^system-/, '')
+                  return isHidden(sectionId) ? (
+                    <div
+                      style={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        backgroundColor: 'rgba(244, 239, 230, 0.6)',
+                        borderRadius: 8,
+                        pointerEvents: 'none',
+                      }}
+                    />
+                  ) : null
+                })()}
               </div>
             ))}
           </div>

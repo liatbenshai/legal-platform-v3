@@ -11,7 +11,11 @@ import {
   updateClient,
 } from '@/lib/db/clients'
 import { deletePerson, getPersons } from '@/lib/db/persons'
-import { createDocument, getDocuments } from '@/lib/db/documents'
+import {
+  createDocument,
+  deleteDocument,
+  getDocuments,
+} from '@/lib/db/documents'
 import { useUser } from '@/lib/hooks/useUser'
 import { createClient as createSupabaseClient } from '@/lib/db/supabase'
 import {
@@ -92,6 +96,22 @@ export default function ClientDetailPage() {
   const [isDeletingPerson, setIsDeletingPerson] = useState(false)
   const [isCreatingDoc, setIsCreatingDoc] = useState(false)
   const [isDocTypeMenuOpen, setIsDocTypeMenuOpen] = useState(false)
+  const [docToDelete, setDocToDelete] = useState<Document | null>(null)
+  const [isDeletingDoc, setIsDeletingDoc] = useState(false)
+
+  async function handleDeleteDocument() {
+    if (!docToDelete) return
+    setIsDeletingDoc(true)
+    try {
+      await deleteDocument(supabase, docToDelete.id)
+      setDocuments((prev) => prev.filter((d) => d.id !== docToDelete.id))
+      setDocToDelete(null)
+    } catch {
+      setError('שגיאה במחיקת המסמך')
+    } finally {
+      setIsDeletingDoc(false)
+    }
+  }
 
   async function handleCreateDocument(type: DocumentType) {
     if (!user) return
@@ -766,12 +786,13 @@ export default function ClientDetailPage() {
                     {documents.map((d) => {
                       const statusStyle = STATUS_STYLES[d.status]
                       return (
-                        <li key={d.id}>
+                        <li key={d.id} style={{ position: 'relative' }}>
                           <Link
                             href={`/clients/${client.id}/documents/${d.id}`}
                             className="flex items-center justify-between gap-3"
                             style={{
                               padding: 14,
+                              paddingLeft: 44,
                               border: '0.5px solid var(--border-default)',
                               borderRadius: 4,
                               textDecoration: 'none',
@@ -821,6 +842,34 @@ export default function ClientDetailPage() {
                               </span>
                             </div>
                           </Link>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.preventDefault()
+                              setDocToDelete(d)
+                            }}
+                            aria-label={`מחק את ${d.title}`}
+                            title="מחק מסמך"
+                            style={{
+                              position: 'absolute',
+                              top: 11,
+                              left: 11,
+                              width: 22,
+                              height: 22,
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              color: 'var(--text-muted)',
+                              backgroundColor: 'transparent',
+                              border: 'none',
+                              borderRadius: 3,
+                              fontSize: 15,
+                              lineHeight: 1,
+                              cursor: 'pointer',
+                            }}
+                          >
+                            ×
+                          </button>
                         </li>
                       )
                     })}
@@ -916,6 +965,21 @@ export default function ClientDetailPage() {
         isProcessing={isDeletingPerson}
         onConfirm={handleDeletePerson}
         onCancel={() => setConfirmDeletePersonId(null)}
+      />
+
+      <ConfirmDialog
+        open={Boolean(docToDelete)}
+        title="מחיקת מסמך"
+        message={
+          docToDelete
+            ? `למחוק את "${docToDelete.title}"? פעולה זו לא ניתנת לשחזור.`
+            : ''
+        }
+        confirmLabel="מחק"
+        destructive
+        isProcessing={isDeletingDoc}
+        onConfirm={handleDeleteDocument}
+        onCancel={() => setDocToDelete(null)}
       />
     </main>
   )

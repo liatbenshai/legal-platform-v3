@@ -31,6 +31,7 @@ import { buildDetailsSections } from '@/lib/engine/details-sections'
 import { dictionary as staticDictionary } from '@/lib/engine/dictionary'
 import { renderDocument } from '@/lib/engine/renderer'
 import { exportToWord } from '@/lib/export/word'
+import { useHiddenSections } from '@/lib/hooks/useHiddenSections'
 import { useUser } from '@/lib/hooks/useUser'
 import {
   sectionLibrary,
@@ -336,12 +337,16 @@ export default function DocumentEditorPage() {
     }))
   }
 
+  const { isHidden } = useHiddenSections()
+
   const availableSections = useMemo(
     () =>
-      [...sectionLibrary, ...userSections].filter((s) =>
-        s.documentTypes.some((t) => allowedDomains.includes(t))
-      ),
-    [allowedDomains, userSections]
+      [...sectionLibrary, ...userSections].filter((s) => {
+        if (!s.documentTypes.some((t) => allowedDomains.includes(t))) return false
+        if (isHidden(s.sectionId)) return false
+        return true
+      }),
+    [allowedDomains, userSections, isHidden]
   )
 
   const rendered = useMemo(() => {
