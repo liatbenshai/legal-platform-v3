@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { PlaceholderInserter } from '@/components/editor/PlaceholderInserter'
 import { createUserTemplate, type TemplateInput } from '@/lib/db/templates'
 import { createClient } from '@/lib/db/supabase'
 import type { ActorRole, DocumentType } from '@/lib/types'
@@ -247,19 +248,12 @@ export function SectionEditor({
                 >
                   תוכן הסעיף <span className="text-red-600">*</span>
                 </label>
-                <textarea
-                  id="section-content"
+                <PlaceholderInserter
                   value={content}
-                  onChange={(e) => setContent(e.target.value)}
+                  onChange={setContent}
                   rows={12}
-                  placeholder="לדוגמה: אני {{ממנה.מצהיר}} כי {{מיופה.מיופה_כוח}} {{מיופה.רשאי}} ..."
-                  disabled={isSaving}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm resize-y"
+                  placeholder="כתבי כאן את תוכן הסעיף. השתמשי בכלים שלמעלה כדי להכניס שדות שיוטו אוטומטית למגדר."
                 />
-                <p className="text-xs text-slate-500 mt-1">
-                  השתמשי ב-placeholders מהלוח משמאל כדי שהמילים יוטו אוטומטית
-                  לפי המגדר של ה-Person במסמך.
-                </p>
               </div>
 
               <div>

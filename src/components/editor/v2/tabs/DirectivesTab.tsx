@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react'
 import { InfoTip } from '@/components/editor/v2/InfoTip'
+import { PlaceholderInserter } from '@/components/editor/PlaceholderInserter'
 import { extractPlaceholders } from '@/lib/engine/renderer'
 import {
   CATEGORY_LABELS,
@@ -441,32 +442,11 @@ function SectionInlineDetails({
           >
             תוכן הסעיף (ניתן לערוך)
           </label>
-          <textarea
+          <PlaceholderInserter
             value={section.content}
-            onChange={(e) => onContentChange(e.target.value)}
+            onChange={onContentChange}
             rows={Math.max(6, Math.min(20, section.content.split('\n').length + 1))}
-            style={{
-              width: '100%',
-              fontSize: 12,
-              padding: '8px 10px',
-              border: '0.5px solid var(--border-hover)',
-              borderRadius: 4,
-              fontFamily: 'inherit',
-              lineHeight: 1.5,
-              resize: 'vertical',
-              backgroundColor: '#fff',
-              color: 'var(--text-primary)',
-            }}
           />
-          <div
-            style={{
-              marginTop: 4,
-              fontSize: 10,
-              color: 'var(--text-muted)',
-            }}
-          >
-            השתמשי ב-{`{{actor.word}}`} להטיות לפי מגדר (למשל {`{{מיופה.יבחר}}`}), או ב-{`{{שם_משתנה}}`} למשתנה שתמלאי למטה.
-          </div>
         </div>
       )}
 
