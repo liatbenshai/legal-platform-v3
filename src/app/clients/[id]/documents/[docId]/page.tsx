@@ -586,6 +586,7 @@ export default function DocumentEditorPage() {
                 ACTOR_LABELS[activeTabSpec.actorRole].female
               }
               rolePlural={ACTOR_LABELS[activeTabSpec.actorRole].plural}
+              isLawyerRole={activeTabSpec.actorRole === 'עורך_דין'}
             />
           )}
           {activeTabSpec?.kind === 'powers' && (

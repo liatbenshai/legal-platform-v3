@@ -76,6 +76,30 @@ export async function getDocuments(
   return ((data ?? []) as DocumentRow[]).map(mapRow)
 }
 
+export interface DocumentWithClient extends Document {
+  clientName: string
+}
+
+interface DocumentWithClientRow extends DocumentRow {
+  clients: { display_name: string } | null
+}
+
+export async function getAllUserDocuments(
+  supabase: SupabaseClient,
+  userId: string
+): Promise<DocumentWithClient[]> {
+  const { data, error } = await supabase
+    .from('documents')
+    .select('*, clients(display_name)')
+    .eq('user_id', userId)
+    .order('updated_at', { ascending: false })
+  if (error) throw error
+  return ((data ?? []) as DocumentWithClientRow[]).map((row) => ({
+    ...mapRow(row),
+    clientName: row.clients?.display_name ?? '—',
+  }))
+}
+
 export async function getDocument(
   supabase: SupabaseClient,
   id: string

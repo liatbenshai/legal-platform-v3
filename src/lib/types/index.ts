@@ -19,3 +19,5 @@ export type {
 } from './document'
 export { EMPTY_DETAILS } from './document'
 export type { SectionTemplate, SectionVariant } from './template'
+export type { LawyerProfile } from './lawyer'
+export { EMPTY_LAWYER_PROFILE } from './lawyer'
