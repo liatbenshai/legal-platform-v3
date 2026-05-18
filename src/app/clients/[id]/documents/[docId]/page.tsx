@@ -6,13 +6,12 @@ import { DocumentCanvas } from '@/components/editor/v2/DocumentCanvas'
 import { DocumentHeader } from '@/components/editor/v2/DocumentHeader'
 import { FormPanel } from '@/components/editor/v2/FormPanel'
 import { StepNavigation } from '@/components/editor/v2/StepNavigation'
-import { StepTabs, TABS, type TabId } from '@/components/editor/v2/StepTabs'
+import { StepTabs } from '@/components/editor/v2/StepTabs'
 import { TitleBar } from '@/components/editor/v2/TitleBar'
-import { AttorneysTab } from '@/components/editor/v2/tabs/AttorneysTab'
+import { ActorPickerTab } from '@/components/editor/v2/tabs/ActorPickerTab'
 import { DetailsTab } from '@/components/editor/v2/tabs/DetailsTab'
 import { DirectivesTab } from '@/components/editor/v2/tabs/DirectivesTab'
 import { PowersTab } from '@/components/editor/v2/tabs/PowersTab'
-import { PrincipalTab } from '@/components/editor/v2/tabs/PrincipalTab'
 import { SignatureTab } from '@/components/editor/v2/tabs/SignatureTab'
 import { getClient } from '@/lib/db/clients'
 import {
@@ -24,6 +23,10 @@ import { getDocument, updateDocument } from '@/lib/db/documents'
 import { getPersons } from '@/lib/db/persons'
 import { createClient } from '@/lib/db/supabase'
 import { getTemplates } from '@/lib/db/templates'
+import {
+  ACTOR_LABELS,
+  getDocTypeConfig,
+} from '@/lib/documents/type-config'
 import { buildDetailsSections } from '@/lib/engine/details-sections'
 import { dictionary as staticDictionary } from '@/lib/engine/dictionary'
 import { renderDocument } from '@/lib/engine/renderer'
@@ -51,33 +54,6 @@ const ALL_DOMAINS: DocumentType[] = [
   'poa-personal',
   'poa-medical',
 ]
-
-const STEP_META: Record<TabId, { title: string; description: string }> = {
-  principal: {
-    title: 'פרטי הממנה',
-    description: 'בחרי את האדם שיוצא ייפוי הכוח בשמו.',
-  },
-  attorneys: {
-    title: 'מיופי הכוח',
-    description: 'מי יקבל את הסמכויות לפעול בשם הממנה.',
-  },
-  powers: {
-    title: 'סמכויות',
-    description: 'באילו תחומים מיופה הכוח מוסמך לפעול.',
-  },
-  details: {
-    title: 'פרטים',
-    description: 'נכסים, רכוש פיננסי, רופאים והעדפות אישיות.',
-  },
-  directives: {
-    title: 'הנחיות מקדימות',
-    description: 'בחרי סעיפים שמפרטים איך לפעול במצבים שונים.',
-  },
-  signature: {
-    title: 'חתימה ואישור',
-    description: 'סקירה אחרונה לפני ייצוא ל-Word.',
-  },
-}
 
 type SaveStatus = 'idle' | 'saving' | 'saved' | 'error'
 
@@ -181,7 +157,7 @@ export default function DocumentEditorPage() {
     []
   )
 
-  const [activeTab, setActiveTab] = useState<TabId>('principal')
+  const [activeTab, setActiveTab] = useState<string>('')
 
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -290,31 +266,48 @@ export default function DocumentEditorPage() {
     [scheduleSave]
   )
 
-  const principalIds = getActorPersonIds(document, 'ממנה')
-  const attorneyIds = getActorPersonIds(document, 'מיופה')
-
-  const principal = useMemo(
-    () => persons.find((p) => p.id === principalIds[0]) ?? null,
-    [persons, principalIds]
+  const docConfig = useMemo(
+    () => (document ? getDocTypeConfig(document.type) : null),
+    [document]
   )
 
-  const attorneys = useMemo(
-    () =>
-      attorneyIds
-        .map((id) => persons.find((p) => p.id === id))
-        .filter((p): p is Person => p !== undefined),
-    [persons, attorneyIds]
-  )
-
-  // Auto-update title when principal is set (only if title is still default)
+  // Initialize activeTab to first tab id of the doc type
   useEffect(() => {
-    if (!document || !principal) return
-    const desiredTitle = `ייפוי כוח - ${principal.firstName} ${principal.lastName}`
+    if (!activeTab && docConfig && docConfig.tabs.length > 0) {
+      setActiveTab(docConfig.tabs[0].id)
+    }
+  }, [activeTab, docConfig])
+
+  const actorTabs = useMemo(
+    () =>
+      (docConfig?.tabs ?? []).filter(
+        (t): t is (typeof t) & { actorRole: NonNullable<typeof t.actorRole> } =>
+          t.kind === 'actor' && Boolean(t.actorRole)
+      ),
+    [docConfig]
+  )
+
+  function getPersonsForRole(role: DocumentActor['role']): Person[] {
+    if (!document) return []
+    return getActorPersonIds(document, role)
+      .map((id) => persons.find((p) => p.id === id))
+      .filter((p): p is Person => p !== undefined)
+  }
+
+  const primaryActorRole = actorTabs[0]?.actorRole
+  const primaryActor = primaryActorRole
+    ? getPersonsForRole(primaryActorRole)[0] ?? null
+    : null
+
+  // Auto-update title when primary actor is set (only if title is still default)
+  useEffect(() => {
+    if (!document || !primaryActor || !docConfig) return
+    const desiredTitle = docConfig.defaultTitle(primaryActor)
     if (document.title === 'מסמך חדש' && document.title !== desiredTitle) {
       applyChange((doc) => ({ ...doc, title: desiredTitle }))
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [principal?.id])
+  }, [primaryActor?.id])
 
   const allowedDomains = useMemo(
     () => (document ? parseDomains(document.variables) : ALL_DOMAINS),
@@ -366,12 +359,8 @@ export default function DocumentEditorPage() {
     setPersons((curr) => [...curr, p])
   }
 
-  function handlePrincipalChange(ids: string[]) {
-    applyChange((doc) => setActor(doc, 'ממנה', ids))
-  }
-
-  function handleAttorneysChange(ids: string[]) {
-    applyChange((doc) => setActor(doc, 'מיופה', ids))
+  function handleActorChange(role: DocumentActor['role'], ids: string[]) {
+    applyChange((doc) => setActor(doc, role, ids))
   }
 
   function handleDomainToggle(domain: DocumentType) {
@@ -460,13 +449,15 @@ export default function DocumentEditorPage() {
   }
 
   function handlePrev() {
-    const idx = TABS.findIndex((t) => t.id === activeTab)
-    if (idx > 0) setActiveTab(TABS[idx - 1].id)
+    const tabs = docConfig?.tabs ?? []
+    const idx = tabs.findIndex((t) => t.id === activeTab)
+    if (idx > 0) setActiveTab(tabs[idx - 1].id)
   }
 
   function handleNext() {
-    const idx = TABS.findIndex((t) => t.id === activeTab)
-    if (idx < TABS.length - 1) setActiveTab(TABS[idx + 1].id)
+    const tabs = docConfig?.tabs ?? []
+    const idx = tabs.findIndex((t) => t.id === activeTab)
+    if (idx < tabs.length - 1) setActiveTab(tabs[idx + 1].id)
   }
 
   if (isLoading) {
@@ -503,29 +494,36 @@ export default function DocumentEditorPage() {
 
   const partiesSummary = (() => {
     const lines: string[] = []
-    if (principal) {
-      lines.push(
-        `הממנה: ${principal.firstName} ${principal.lastName}, ת.ז. ${principal.idNumber}`
-      )
-    } else {
-      lines.push('הממנה: [טרם נבחר]')
-    }
-    if (attorneys.length > 0) {
-      const role =
-        attorneys.length > 1
-          ? 'מיופי הכוח'
-          : attorneys[0].gender === 'female'
-            ? 'מיופת הכוח'
-            : 'מיופה הכוח'
-      const names = attorneys
-        .map((a) => `${a.firstName} ${a.lastName} (ת.ז. ${a.idNumber})`)
+    for (const tab of actorTabs) {
+      const role = tab.actorRole
+      const labels = ACTOR_LABELS[role]
+      const list = getPersonsForRole(role)
+      if (list.length === 0) {
+        lines.push(`${labels.male}: [טרם נבחר]`)
+        continue
+      }
+      const roleText = !tab.multiple
+        ? list[0].gender === 'female'
+          ? labels.female
+          : labels.male
+        : list.length > 1
+          ? labels.plural
+          : list[0].gender === 'female'
+            ? labels.female
+            : labels.male
+      const names = list
+        .map((p) => `${p.firstName} ${p.lastName} (ת.ז. ${p.idNumber})`)
         .join(', ')
-      lines.push(`${role}: ${names}`)
-    } else {
-      lines.push('מיופי הכוח: [טרם נבחרו]')
+      lines.push(`${roleText}: ${names}`)
     }
     return lines.join('\n')
   })()
+
+  const activeTabSpec = docConfig?.tabs.find((t) => t.id === activeTab)
+  const stepTitle = activeTabSpec?.label ?? ''
+  const stepDescription = activeTabSpec?.description ?? ''
+  const firstTabId = docConfig?.tabs[0]?.id
+  const lastTabId = docConfig?.tabs[docConfig.tabs.length - 1]?.id
 
   return (
     <main
@@ -534,7 +532,7 @@ export default function DocumentEditorPage() {
     >
       <TitleBar />
       <DocumentHeader
-        documentType="ייפוי כוח מתמשך"
+        documentType={docConfig?.label ?? 'מסמך'}
         documentName={document.title}
         clientName={client?.displayName ?? '—'}
         openedAt={document.createdAt}
@@ -542,7 +540,11 @@ export default function DocumentEditorPage() {
         isExporting={isExporting}
         canExport={hasContent}
       />
-      <StepTabs activeId={activeTab} onChange={setActiveTab} />
+      <StepTabs
+        tabs={(docConfig?.tabs ?? []).map((t) => ({ id: t.id, label: t.label }))}
+        activeId={activeTab}
+        onChange={setActiveTab}
+      />
 
       {exportError && (
         <div
@@ -562,43 +564,43 @@ export default function DocumentEditorPage() {
         className="flex-1 grid overflow-hidden"
         style={{ gridTemplateColumns: '30% 70%' }}
       >
-        <FormPanel
-          stepTitle={STEP_META[activeTab].title}
-          stepDescription={STEP_META[activeTab].description}
-        >
-          {activeTab === 'principal' && (
-            <PrincipalTab
+        <FormPanel stepTitle={stepTitle} stepDescription={stepDescription}>
+          {activeTabSpec?.kind === 'actor' && activeTabSpec.actorRole && (
+            <ActorPickerTab
               clientId={clientId}
-              selectedIds={principalIds}
-              onChange={handlePrincipalChange}
+              label={activeTabSpec.label}
+              multiple={Boolean(activeTabSpec.multiple)}
+              selectedIds={getActorPersonIds(document, activeTabSpec.actorRole)}
+              selectedPersons={getPersonsForRole(activeTabSpec.actorRole)}
+              excludeIds={actorTabs
+                .filter((t) => t.actorRole !== activeTabSpec.actorRole)
+                .flatMap((t) =>
+                  t.actorRole ? getActorPersonIds(document, t.actorRole) : []
+                )}
+              onChange={(ids) =>
+                handleActorChange(activeTabSpec.actorRole!, ids)
+              }
               onPersonCreated={handlePersonCreated}
-              attorneyIds={attorneyIds}
-              principal={principal}
+              roleSingularMale={ACTOR_LABELS[activeTabSpec.actorRole].male}
+              roleSingularFemale={
+                ACTOR_LABELS[activeTabSpec.actorRole].female
+              }
+              rolePlural={ACTOR_LABELS[activeTabSpec.actorRole].plural}
             />
           )}
-          {activeTab === 'attorneys' && (
-            <AttorneysTab
-              clientId={clientId}
-              selectedIds={attorneyIds}
-              onChange={handleAttorneysChange}
-              onPersonCreated={handlePersonCreated}
-              principalIds={principalIds}
-              attorneys={attorneys}
-            />
-          )}
-          {activeTab === 'powers' && (
+          {activeTabSpec?.kind === 'powers' && (
             <PowersTab
               selectedDomains={allowedDomains}
               onToggle={handleDomainToggle}
             />
           )}
-          {activeTab === 'details' && (
+          {activeTabSpec?.kind === 'details' && (
             <DetailsTab
               details={details}
               onChange={handleDetailsChange}
             />
           )}
-          {activeTab === 'directives' && (
+          {activeTabSpec?.kind === 'directives' && (
             <DirectivesTab
               availableSections={availableSections}
               selectedSections={document.sections}
@@ -612,16 +614,24 @@ export default function DocumentEditorPage() {
               allowedDomains={allowedDomains}
             />
           )}
-          {activeTab === 'signature' && (
+          {activeTabSpec?.kind === 'signature' && (
             <SignatureTab
               status={document.status}
               onStatusChange={handleStatusChange}
               principalName={
-                principal ? `${principal.firstName} ${principal.lastName}` : null
+                primaryActor
+                  ? `${primaryActor.firstName} ${primaryActor.lastName}`
+                  : null
               }
-              attorneyNames={attorneys.map(
-                (a) => `${a.firstName} ${a.lastName}`
-              )}
+              attorneyNames={actorTabs
+                .slice(1)
+                .flatMap((t) =>
+                  t.actorRole
+                    ? getPersonsForRole(t.actorRole).map(
+                        (p) => `${p.firstName} ${p.lastName}`
+                      )
+                    : []
+                )}
               sectionsCount={document.sections.length}
               onExport={handleExport}
               isExporting={isExporting}
@@ -632,8 +642,8 @@ export default function DocumentEditorPage() {
             <StepNavigation
               onPrev={handlePrev}
               onNext={handleNext}
-                prevDisabled={activeTab === 'principal'}
-              nextDisabled={activeTab === 'signature'}
+              prevDisabled={activeTab === firstTabId}
+              nextDisabled={activeTab === lastTabId}
             />
           </div>
         </FormPanel>

@@ -1,33 +1,17 @@
 'use client'
 
-export type TabId =
-  | 'principal'
-  | 'attorneys'
-  | 'powers'
-  | 'details'
-  | 'directives'
-  | 'signature'
-
 export interface TabDef {
-  id: TabId
+  id: string
   label: string
 }
 
-export const TABS: TabDef[] = [
-  { id: 'principal', label: 'פרטי הממנה' },
-  { id: 'attorneys', label: 'מיופי הכוח' },
-  { id: 'powers', label: 'סמכויות' },
-  { id: 'details', label: 'פרטים' },
-  { id: 'directives', label: 'הנחיות מקדימות' },
-  { id: 'signature', label: 'חתימה ואישור' },
-]
-
 interface StepTabsProps {
-  activeId: TabId
-  onChange: (id: TabId) => void
+  tabs: TabDef[]
+  activeId: string
+  onChange: (id: string) => void
 }
 
-export function StepTabs({ activeId, onChange }: StepTabsProps) {
+export function StepTabs({ tabs, activeId, onChange }: StepTabsProps) {
   return (
     <div
       className="flex border-b"
@@ -38,7 +22,7 @@ export function StepTabs({ activeId, onChange }: StepTabsProps) {
         gap: 28,
       }}
     >
-      {TABS.map((tab, idx) => {
+      {tabs.map((tab, idx) => {
         const isActive = tab.id === activeId
         return (
           <button

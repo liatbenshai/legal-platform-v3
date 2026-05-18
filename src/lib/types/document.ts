@@ -23,6 +23,8 @@ export type ActorRole =
   | 'נתבע'
   | 'עד1'
   | 'עד2'
+  | 'לקוח'
+  | 'עורך_דין'
 
 export type DocumentStatus = 'draft' | 'review' | 'signed'
 

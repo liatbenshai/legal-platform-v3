@@ -14,6 +14,10 @@ import { deletePerson, getPersons } from '@/lib/db/persons'
 import { createDocument, getDocuments } from '@/lib/db/documents'
 import { useUser } from '@/lib/hooks/useUser'
 import { createClient as createSupabaseClient } from '@/lib/db/supabase'
+import {
+  DOC_TYPE_CONFIGS,
+  SUPPORTED_DOC_TYPES,
+} from '@/lib/documents/type-config'
 import type {
   Client,
   Document,
@@ -87,16 +91,18 @@ export default function ClientDetailPage() {
   >(null)
   const [isDeletingPerson, setIsDeletingPerson] = useState(false)
   const [isCreatingDoc, setIsCreatingDoc] = useState(false)
+  const [isDocTypeMenuOpen, setIsDocTypeMenuOpen] = useState(false)
 
-  async function handleCreateDocument() {
+  async function handleCreateDocument(type: DocumentType) {
     if (!user) return
     setIsCreatingDoc(true)
+    setIsDocTypeMenuOpen(false)
     try {
       const newDoc = await createDocument(
         supabase,
         clientId,
         user.id,
-        'poa-property',
+        type,
         'מסמך חדש'
       )
       router.push(`/clients/${clientId}/documents/${newDoc.id}`)
@@ -660,10 +666,10 @@ export default function ClientDetailPage() {
               </div>
             ) : (
               <div>
-                <div className="flex justify-end mb-4">
+                <div className="flex justify-end mb-4" style={{ position: 'relative' }}>
                   <button
                     type="button"
-                    onClick={handleCreateDocument}
+                    onClick={() => setIsDocTypeMenuOpen((v) => !v)}
                     disabled={isCreatingDoc || !user}
                     style={{
                       padding: '8px 14px',
@@ -679,6 +685,73 @@ export default function ClientDetailPage() {
                   >
                     {isCreatingDoc ? 'יוצר...' : '+ מסמך חדש'}
                   </button>
+                  {isDocTypeMenuOpen && (
+                    <>
+                      <div
+                        onClick={() => setIsDocTypeMenuOpen(false)}
+                        style={{
+                          position: 'fixed',
+                          inset: 0,
+                          zIndex: 10,
+                        }}
+                      />
+                      <div
+                        style={{
+                          position: 'absolute',
+                          top: '100%',
+                          left: 0,
+                          marginTop: 6,
+                          backgroundColor: '#fff',
+                          border: '0.5px solid var(--border-default)',
+                          borderRadius: 6,
+                          boxShadow: '0 4px 12px rgba(61, 40, 23, 0.08)',
+                          minWidth: 220,
+                          zIndex: 20,
+                          overflow: 'hidden',
+                        }}
+                      >
+                        <div
+                          style={{
+                            padding: '8px 12px',
+                            fontSize: 11,
+                            color: 'var(--text-muted)',
+                            borderBottom: '0.5px solid var(--border-default)',
+                          }}
+                        >
+                          בחרי סוג מסמך
+                        </div>
+                        {SUPPORTED_DOC_TYPES.map((t) => (
+                          <button
+                            key={t}
+                            type="button"
+                            onClick={() => handleCreateDocument(t)}
+                            style={{
+                              display: 'block',
+                              width: '100%',
+                              padding: '10px 12px',
+                              textAlign: 'right',
+                              fontSize: 13,
+                              color: 'var(--text-primary)',
+                              backgroundColor: 'transparent',
+                              border: 'none',
+                              borderTop: '0.5px solid var(--border-default)',
+                              cursor: 'pointer',
+                            }}
+                            onMouseEnter={(e) =>
+                              (e.currentTarget.style.backgroundColor =
+                                'var(--bg-secondary)')
+                            }
+                            onMouseLeave={(e) =>
+                              (e.currentTarget.style.backgroundColor =
+                                'transparent')
+                            }
+                          >
+                            {DOC_TYPE_CONFIGS[t].label}
+                          </button>
+                        ))}
+                      </div>
+                    </>
+                  )}
                 </div>
 
                 {documents.length === 0 ? (
