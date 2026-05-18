@@ -371,15 +371,8 @@ export default function DashboardPage() {
             אין מסמכים שתואמים לסינון
           </div>
         ) : (
-          <div
-            style={{
-              backgroundColor: '#fff',
-              border: '1px solid var(--border-default)',
-              borderRadius: 8,
-              overflow: 'hidden',
-            }}
-          >
-            {filtered.map((d, idx) => {
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {filtered.map((d) => {
               const statusStyle = STATUS_STYLES[d.status]
               const typeLabel = DOC_TYPE_CONFIGS[d.type]?.label ?? d.type
               return (
@@ -388,58 +381,76 @@ export default function DashboardPage() {
                   href={`/clients/${d.clientId}/documents/${d.id}`}
                   style={{
                     display: 'block',
-                    padding: '14px 18px',
-                    borderTop:
-                      idx === 0 ? 'none' : '0.5px solid var(--border-default)',
+                    backgroundColor: '#fff',
+                    border: '1px solid var(--border-default)',
+                    borderRadius: 8,
+                    padding: 18,
                     textDecoration: 'none',
                     color: 'inherit',
+                    transition: 'border-color 120ms, transform 120ms',
                   }}
-                  className="hover:bg-stone-50"
+                  className="hover:border-stone-400 hover:-translate-y-0.5"
                 >
-                  <div className="flex items-center justify-between gap-4">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <h3
-                          className="doc-title truncate"
-                          style={{
-                            fontSize: 14,
-                            fontWeight: 500,
-                            color: 'var(--color-primary)',
-                            margin: 0,
-                          }}
-                        >
-                          {d.title}
-                        </h3>
-                        <span
-                          style={{
-                            fontSize: 10,
-                            padding: '2px 6px',
-                            borderRadius: 3,
-                            backgroundColor: statusStyle.bg,
-                            color: statusStyle.color,
-                            flexShrink: 0,
-                          }}
-                        >
-                          {STATUS_LABELS[d.status]}
-                        </span>
-                      </div>
-                      <div
-                        className="flex gap-3"
-                        style={{ fontSize: 12, color: 'var(--text-secondary)' }}
-                      >
-                        <span>{typeLabel}</span>
-                        <span>·</span>
-                        <span>
-                          <i
-                            className="ti ti-user"
-                            style={{ marginLeft: 3, fontSize: 12 }}
-                          />
-                          {d.clientName}
-                        </span>
-                      </div>
-                    </div>
+                  <div className="flex items-start justify-between gap-2 mb-3">
                     <span
-                      style={{ fontSize: 11, color: 'var(--text-muted)' }}
+                      style={{
+                        fontSize: 11,
+                        color: 'var(--text-muted)',
+                        textTransform: 'uppercase',
+                        letterSpacing: 0.5,
+                      }}
+                    >
+                      {typeLabel}
+                    </span>
+                    <span
+                      style={{
+                        fontSize: 10,
+                        padding: '2px 7px',
+                        borderRadius: 3,
+                        backgroundColor: statusStyle.bg,
+                        color: statusStyle.color,
+                        flexShrink: 0,
+                        fontWeight: 500,
+                      }}
+                    >
+                      {STATUS_LABELS[d.status]}
+                    </span>
+                  </div>
+                  <h3
+                    className="doc-title"
+                    style={{
+                      fontSize: 16,
+                      fontWeight: 500,
+                      color: 'var(--color-primary)',
+                      margin: '0 0 14px',
+                      lineHeight: 1.35,
+                      minHeight: 42,
+                    }}
+                  >
+                    {d.title}
+                  </h3>
+                  <div
+                    className="flex items-center justify-between"
+                    style={{
+                      paddingTop: 12,
+                      borderTop: '0.5px solid var(--border-default)',
+                      fontSize: 12,
+                      color: 'var(--text-secondary)',
+                    }}
+                  >
+                    <span className="truncate">
+                      <i
+                        className="ti ti-user"
+                        style={{ marginLeft: 4, fontSize: 12 }}
+                      />
+                      {d.clientName}
+                    </span>
+                    <span
+                      style={{
+                        fontSize: 11,
+                        color: 'var(--text-muted)',
+                        flexShrink: 0,
+                      }}
                     >
                       עודכן {formatDate(d.updatedAt)}
                     </span>

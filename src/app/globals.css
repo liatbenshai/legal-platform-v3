@@ -1,30 +1,30 @@
 @import "tailwindcss";
 
 :root {
-  /* Primary palette — espresso brown */
-  --color-primary: #3D2817;
-  --color-primary-light: #EDE3D6;
+  /* Primary palette — softer espresso */
+  --color-primary: #4F3625;
+  --color-primary-light: #F1E8DC;
 
   /* Accent — aged gold */
   --color-accent: #C9A063;
-  --color-accent-light: #F5E6CC;
-  --color-accent-bg: #FAF3E6;
+  --color-accent-light: #F7EAD2;
+  --color-accent-bg: #FCF6EB;
 
-  /* Backgrounds — warm cream */
-  --bg-primary: #FAF7F2;
-  --bg-secondary: #F0EAE0;
-  --bg-titlebar: #3D2817;
+  /* Backgrounds — soft warm cream */
+  --bg-primary: #FCFAF6;
+  --bg-secondary: #F4EFE6;
+  --bg-titlebar: #4F3625;
 
-  /* Text — warm browns */
-  --text-primary: #3D2817;
-  --text-secondary: #6B5544;
-  --text-muted: #9B8775;
-  --text-success: #5A7A3C;
+  /* Text — softer warm browns */
+  --text-primary: #4F3625;
+  --text-secondary: #7B6553;
+  --text-muted: #A89682;
+  --text-success: #6B8A4D;
 
-  /* Borders — warm tones */
-  --border-default: #E2D7C6;
-  --border-hover: #C9BBA5;
-  --border-active: #3D2817;
+  /* Borders — soft warm tones */
+  --border-default: #EADFCD;
+  --border-hover: #D4C5AC;
+  --border-active: #4F3625;
 }
 
 @theme inline {
