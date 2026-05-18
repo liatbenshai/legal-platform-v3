@@ -56,6 +56,9 @@ const CATEGORIES: Array<DocumentType | 'all'> = [
   'poa-property',
   'poa-personal',
   'poa-medical',
+  'fee-agreement',
+  'will-individual',
+  'will-mutual',
 ]
 
 export default function LibraryPage() {

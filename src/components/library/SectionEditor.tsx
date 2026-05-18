@@ -4,6 +4,11 @@ import { useState } from 'react'
 import { PlaceholderInserter } from '@/components/editor/PlaceholderInserter'
 import { createUserTemplate, type TemplateInput } from '@/lib/db/templates'
 import { createClient } from '@/lib/db/supabase'
+import {
+  ACTOR_LABELS,
+  DOC_TYPE_CONFIGS,
+  SUPPORTED_DOC_TYPES,
+} from '@/lib/documents/type-config'
 import type { ActorRole, DocumentType } from '@/lib/types'
 
 interface SectionEditorProps {
@@ -14,30 +19,41 @@ interface SectionEditorProps {
 }
 
 const CATEGORY_OPTIONS: Array<{ value: DocumentType; label: string }> = [
-  { value: 'poa-property', label: 'רכושי' },
-  { value: 'poa-personal', label: 'אישי' },
-  { value: 'poa-medical', label: 'רפואי' },
+  { value: 'poa-property', label: 'ייפוי כוח · רכושי' },
+  { value: 'poa-personal', label: 'ייפוי כוח · אישי' },
+  { value: 'poa-medical', label: 'ייפוי כוח · רפואי' },
+  { value: 'fee-agreement', label: 'הסכם שכר טרחה' },
+  { value: 'will-individual', label: 'צוואת יחיד' },
+  { value: 'will-mutual', label: 'צוואה הדדית' },
 ]
 
-const ACTOR_OPTIONS: Array<{ value: ActorRole; label: string }> = [
-  { value: 'ממנה', label: 'ממנה' },
-  { value: 'מיופה', label: 'מיופה כוח' },
-]
-
-const PLACEHOLDER_EXAMPLES: Array<{ code: string; meaning: string }> = [
-  { code: '{{ממנה.שם}}', meaning: 'שם מלא של הממנה' },
-  { code: '{{ממנה.תז}}', meaning: 'תעודת זהות של הממנה' },
-  { code: '{{ממנה.כתובת}}', meaning: 'כתובת הממנה' },
-  { code: '{{ממנה.מצהיר}}', meaning: 'מצהיר / מצהירה / מצהירים' },
-  { code: '{{ממנה.מבקש}}', meaning: 'מבקש / מבקשת / מבקשים' },
-  { code: '{{ממנה.מעדיף}}', meaning: 'מעדיף / מעדיפה / מעדיפים' },
-  { code: '{{מיופה.שם}}', meaning: 'שם מיופה הכוח' },
-  { code: '{{מיופה.מיופה_כוח}}', meaning: 'מיופה הכוח / מיופת / מיופי' },
-  { code: '{{מיופה.רשאי}}', meaning: 'רשאי / רשאית / רשאים' },
-  { code: '{{מיופה.יפעל}}', meaning: 'יפעל / תפעל / יפעלו' },
-  { code: '{{מיופה.תפקידו}}', meaning: 'תפקידו / תפקידה / תפקידם' },
-  { code: '{{מיופה.אינו}}', meaning: 'אינו / אינה / אינם' },
-]
+function getActorOptionsForCategory(
+  category: DocumentType
+): Array<{ value: ActorRole; label: string }> {
+  // Pull actor roles from the doc-type config's actor tabs
+  const config = DOC_TYPE_CONFIGS[category]
+  if (!config || config.tabs.length === 0) {
+    // Fall back to POA actors
+    return [
+      { value: 'ממנה', label: 'ממנה' },
+      { value: 'מיופה', label: 'מיופה כוח' },
+    ]
+  }
+  const seen = new Set<ActorRole>()
+  const options: Array<{ value: ActorRole; label: string }> = []
+  for (const tab of config.tabs) {
+    if (tab.kind !== 'actor' || !tab.actorRole) continue
+    if (seen.has(tab.actorRole)) continue
+    seen.add(tab.actorRole)
+    options.push({
+      value: tab.actorRole,
+      label: ACTOR_LABELS[tab.actorRole].male,
+    })
+  }
+  // POA needs both ממנה and מיופה as defaults; other types use whatever the
+  // config defines. Keep alphabetical-ish via insertion order.
+  return options
+}
 
 export function SectionEditor({
   open,
@@ -52,6 +68,15 @@ export function SectionEditor({
     'ממנה',
     'מיופה',
   ])
+
+  const actorOptions = getActorOptionsForCategory(category)
+
+  function handleCategoryChange(next: DocumentType) {
+    setCategory(next)
+    // Reset required actors to all defaults for the new category
+    const opts = getActorOptionsForCategory(next)
+    setRequiredActors(opts.map((o) => o.value))
+  }
   const [content, setContent] = useState('')
   const [tagsInput, setTagsInput] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -63,10 +88,6 @@ export function SectionEditor({
     setRequiredActors((curr) =>
       curr.includes(role) ? curr.filter((r) => r !== role) : [...curr, role]
     )
-  }
-
-  function insertPlaceholder(code: string) {
-    setContent((curr) => (curr ? `${curr} ${code}` : code))
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -120,8 +141,7 @@ export function SectionEditor({
       // reset for next time
       setTitle('')
       setDescription('')
-      setCategory('poa-property')
-      setRequiredActors(['ממנה', 'מיופה'])
+      handleCategoryChange('poa-property')
       setContent('')
       setTagsInput('')
     } catch {
@@ -157,7 +177,7 @@ export function SectionEditor({
         </h2>
 
         <form onSubmit={handleSubmit}>
-          <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-6">
+          <div>
             <div className="space-y-4">
               <div>
                 <label
@@ -198,7 +218,7 @@ export function SectionEditor({
                 <span className="block text-sm font-medium text-slate-700 mb-2">
                   קטגוריה <span className="text-red-600">*</span>
                 </span>
-                <div className="flex gap-4">
+                <div className="grid grid-cols-2 gap-2">
                   {CATEGORY_OPTIONS.map((opt) => (
                     <label
                       key={opt.value}
@@ -208,7 +228,7 @@ export function SectionEditor({
                         type="radio"
                         name="category"
                         checked={category === opt.value}
-                        onChange={() => setCategory(opt.value)}
+                        onChange={() => handleCategoryChange(opt.value)}
                         disabled={isSaving}
                         className="w-4 h-4"
                       />
@@ -222,8 +242,8 @@ export function SectionEditor({
                 <span className="block text-sm font-medium text-slate-700 mb-2">
                   שחקנים בסעיף
                 </span>
-                <div className="flex gap-4">
-                  {ACTOR_OPTIONS.map((opt) => (
+                <div className="flex flex-wrap gap-3">
+                  {actorOptions.map((opt) => (
                     <label
                       key={opt.value}
                       className="flex items-center gap-2 cursor-pointer"
@@ -275,32 +295,6 @@ export function SectionEditor({
               </div>
             </div>
 
-            <aside className="bg-slate-50 border border-slate-200 rounded-lg p-4 h-fit lg:sticky lg:top-4">
-              <h3 className="text-sm font-semibold text-slate-800 mb-3">
-                לוח Placeholders
-              </h3>
-              <p className="text-xs text-slate-500 mb-3">
-                לחיצה תוסיף את ה-placeholder לסוף התוכן.
-              </p>
-              <div className="space-y-1.5 max-h-[400px] overflow-y-auto">
-                {PLACEHOLDER_EXAMPLES.map((p) => (
-                  <button
-                    key={p.code}
-                    type="button"
-                    onClick={() => insertPlaceholder(p.code)}
-                    disabled={isSaving}
-                    className="w-full text-right p-2 bg-white border border-slate-200 rounded hover:border-blue-400 hover:bg-blue-50 transition-colors disabled:opacity-50"
-                  >
-                    <div className="font-mono text-xs text-blue-700" dir="ltr">
-                      {p.code}
-                    </div>
-                    <div className="text-xs text-slate-500 mt-0.5">
-                      {p.meaning}
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </aside>
           </div>
 
           {error && (
