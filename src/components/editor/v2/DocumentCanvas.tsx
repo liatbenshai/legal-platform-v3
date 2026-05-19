@@ -1,9 +1,13 @@
 'use client'
 
 import { Fragment } from 'react'
+import { getDocLayout } from '@/lib/documents/layout-config'
 import type { RenderedSection } from '@/lib/engine/renderer'
+import type { DocumentType } from '@/lib/types'
 
 interface DocumentCanvasProps {
+  documentType: DocumentType
+  /** השם הפנימי של הקובץ — לא מוצג בגוף המסמך עצמו, רק במסך */
   documentTitle: string
   rendered: RenderedSection[]
   partiesSummary?: string
@@ -102,12 +106,15 @@ function getSaveText(
 }
 
 export function DocumentCanvas({
+  documentType,
   documentTitle,
   rendered,
   partiesSummary,
   pageInfo = 'תצוגה מקדימה',
   saveStatus,
 }: DocumentCanvasProps) {
+  const layout = getDocLayout(documentType)
+
   return (
     <div
       className="relative h-full overflow-y-auto"
@@ -127,20 +134,28 @@ export function DocumentCanvas({
         }}
       >
         {pageInfo}
+        <span
+          style={{
+            marginInlineStart: 8,
+            color: 'var(--text-muted)',
+          }}
+        >
+          · {documentTitle}
+        </span>
       </div>
 
       <div className="text-center" style={{ marginBottom: 32 }}>
         <h1
           className="doc-title"
           style={{
-            fontSize: 26,
+            fontSize: 28,
             color: 'var(--color-primary)',
             fontWeight: 500,
             letterSpacing: '1px',
             margin: 0,
           }}
         >
-          {documentTitle}
+          {layout.heading}
         </h1>
         <div
           style={{
@@ -150,13 +165,15 @@ export function DocumentCanvas({
             margin: '12px auto',
           }}
         />
-        <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
-          לפי חוק הכשרות המשפטית והאפוטרופסות, התשכ&quot;ב-1962
-        </div>
+        {layout.subtitle && (
+          <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
+            {layout.subtitle}
+          </div>
+        )}
       </div>
 
       <div className="doc-body" style={{ maxWidth: 720, margin: '0 auto' }}>
-        {partiesSummary && (
+        {layout.showPartiesBlock && partiesSummary && (
           <div
             style={{
               marginBottom: 28,
@@ -177,7 +194,7 @@ export function DocumentCanvas({
             className="doc-placeholder"
             style={{ margin: '0 0 16px', textAlign: 'right' }}
           >
-            [בחרי סעיפים בלשונית &quot;הנחיות מקדימות&quot; כדי שיופיעו כאן]
+            [בחרי סעיפים בלשונית &quot;סעיפים&quot; כדי שיופיעו כאן]
           </p>
         ) : (
           rendered.map((section, idx) => (
@@ -211,7 +228,7 @@ export function DocumentCanvas({
         }}
       >
         <div className="flex items-center">{getSaveText(saveStatus)}</div>
-        <div>בהתאמה לטופס משרד המשפטים</div>
+        <div>תצוגה מקדימה</div>
       </div>
     </div>
   )

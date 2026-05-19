@@ -14,6 +14,7 @@ import {
   type InflectedWord,
 } from '@/lib/engine/dictionary'
 import { renderDocument } from '@/lib/engine/renderer'
+import { getDocLayout } from '@/lib/documents/layout-config'
 import type { Document, DocumentDetails, EmbeddedPerson } from '@/lib/types'
 
 const FONT = 'David'
@@ -107,22 +108,42 @@ function makeSectionHeading(number: number, title: string): Paragraph {
   })
 }
 
-function makeDocumentTitle(title: string): Paragraph {
-  return new Paragraph({
-    bidirectional: true,
-    alignment: AlignmentType.CENTER,
-    heading: HeadingLevel.TITLE,
-    spacing: { after: 400, line: LINE_SPACING },
-    children: [
-      new TextRun({
-        text: title,
-        font: FONT,
-        size: SIZE_TITLE,
-        bold: true,
-        rightToLeft: true,
-      }),
-    ],
-  })
+function makeDocumentTitle(heading: string, subtitle?: string): Paragraph[] {
+  const paragraphs: Paragraph[] = [
+    new Paragraph({
+      bidirectional: true,
+      alignment: AlignmentType.CENTER,
+      heading: HeadingLevel.TITLE,
+      spacing: { after: subtitle ? 80 : 400, line: LINE_SPACING },
+      children: [
+        new TextRun({
+          text: heading,
+          font: FONT,
+          size: SIZE_TITLE,
+          bold: true,
+          rightToLeft: true,
+        }),
+      ],
+    }),
+  ]
+  if (subtitle) {
+    paragraphs.push(
+      new Paragraph({
+        bidirectional: true,
+        alignment: AlignmentType.CENTER,
+        spacing: { after: 400, line: LINE_SPACING },
+        children: [
+          new TextRun({
+            text: subtitle,
+            font: FONT,
+            size: SIZE_BODY,
+            rightToLeft: true,
+          }),
+        ],
+      })
+    )
+  }
+  return paragraphs
 }
 
 function makeLabelValueParagraph(label: string, value: string): Paragraph {
@@ -260,6 +281,7 @@ function safeFilename(title: string): string {
 }
 
 export async function exportToWord(opts: ExportOptions): Promise<void> {
+  const layout = getDocLayout(opts.document.type)
   const fromTemplates = renderDocument({
     document: opts.document,
     dictionary: opts.dictionary,
@@ -271,26 +293,13 @@ export async function exportToWord(opts: ExportOptions): Promise<void> {
 
   const children: Paragraph[] = []
 
-  children.push(makeDocumentTitle(opts.document.title))
-  children.push(...makePartiesSection(opts))
+  // כותרת ראשית (ממורכזת) + כיתוב משני אופציונלי
+  children.push(...makeDocumentTitle(layout.heading, layout.subtitle))
 
-  // Section heading for the directives block
-  children.push(
-    new Paragraph({
-      bidirectional: true,
-      alignment: AlignmentType.RIGHT,
-      spacing: { before: 400, after: 200, line: LINE_SPACING },
-      children: [
-        new TextRun({
-          text: 'הנחיות מקדימות',
-          font: FONT,
-          size: SIZE_HEADING,
-          bold: true,
-          rightToLeft: true,
-        }),
-      ],
-    })
-  )
+  // בלוק "פרטי הצדדים" — רק בסוגי מסמכים שהוגדר עבורם
+  if (layout.showPartiesBlock) {
+    children.push(...makePartiesSection(opts))
+  }
 
   let mainIndex = 0
   for (const section of rendered) {

@@ -667,6 +667,7 @@ export default function DocumentEditorPage() {
         </FormPanel>
 
         <DocumentCanvas
+          documentType={document.type}
           documentTitle={document.title}
           rendered={rendered}
           partiesSummary={partiesSummary}

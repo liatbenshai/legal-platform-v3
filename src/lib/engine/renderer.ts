@@ -27,6 +27,10 @@ function formatHebrewDate(d: Date): string {
 
 function resolvePlaceholder(expr: string, ctx: RenderContext): string {
   if (!expr.includes('.')) {
+    // משתני מערכת — placeholder אוטומטי
+    if (expr === 'תאריך_היום') {
+      return formatHebrewDate(new Date())
+    }
     return ctx.document.variables[expr] ?? `{{${expr}}}`
   }
 
