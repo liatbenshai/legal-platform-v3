@@ -1,62 +1,87 @@
 @import "tailwindcss";
 
 :root {
-  /* Primary palette — softer espresso */
-  --color-primary: #4F3625;
-  --color-primary-light: #F1E8DC;
+  /* ============================================================
+     פלטת צבעים: משפטי-מקצועי
+     בסיס: כחול-אפור עמוק (slate) + דגש זהב חמים (amber/gold)
+     ============================================================ */
 
-  /* Accent — aged gold */
-  --color-accent: #C9A063;
-  --color-accent-light: #F7EAD2;
-  --color-accent-bg: #FCF6EB;
+  /* Primary — slate כהה */
+  --color-primary: #1E293B;
+  --color-primary-hover: #334155;
+  --color-primary-light: #F1F5F9;
 
-  /* Backgrounds — soft warm cream */
-  --bg-primary: #FCFAF6;
-  --bg-secondary: #F4EFE6;
-  --bg-titlebar: #4F3625;
+  /* Accent — זהב חמים */
+  --color-accent: #D4A24C;
+  --color-accent-hover: #B88838;
+  --color-accent-light: #FEF3C7;
+  --color-accent-bg: #FFFBEB;
 
-  /* Text — softer warm browns */
-  --text-primary: #4F3625;
-  --text-secondary: #7B6553;
-  --text-muted: #A89682;
-  --text-success: #6B8A4D;
+  /* רקעים */
+  --bg-primary: #FFFFFF;
+  --bg-secondary: #F8FAFC;
+  --bg-tertiary: #F1F5F9;
+  --bg-titlebar: #1E293B;
 
-  /* Borders — soft warm tones */
-  --border-default: #EADFCD;
-  --border-hover: #D4C5AC;
-  --border-active: #4F3625;
+  /* טקסט */
+  --text-primary: #0F172A;
+  --text-secondary: #475569;
+  --text-muted: #94A3B8;
+  --text-inverse: #F8FAFC;
+  --text-on-dark-muted: #CBD5E1;
+
+  /* גבולות */
+  --border-default: #E2E8F0;
+  --border-hover: #CBD5E1;
+  --border-active: #1E293B;
+  --border-dark: #334155;
+
+  /* סטטוסים */
+  --status-draft-bg: #F1F5F9;
+  --status-draft-fg: #475569;
+  --status-review-bg: #FEF3C7;
+  --status-review-fg: #92660A;
+  --status-signed-bg: #DCFCE7;
+  --status-signed-fg: #15803D;
+  --status-warning: #D4A24C;
+  --status-success: #15803D;
 }
 
 @theme inline {
   --color-ld-primary: var(--color-primary);
+  --color-ld-primary-hover: var(--color-primary-hover);
   --color-ld-primary-light: var(--color-primary-light);
   --color-ld-accent: var(--color-accent);
+  --color-ld-accent-hover: var(--color-accent-hover);
   --color-ld-accent-light: var(--color-accent-light);
   --color-ld-accent-bg: var(--color-accent-bg);
   --color-ld-bg-primary: var(--bg-primary);
   --color-ld-bg-secondary: var(--bg-secondary);
+  --color-ld-bg-tertiary: var(--bg-tertiary);
   --color-ld-bg-titlebar: var(--bg-titlebar);
   --color-ld-text-primary: var(--text-primary);
   --color-ld-text-secondary: var(--text-secondary);
   --color-ld-text-muted: var(--text-muted);
-  --color-ld-text-success: var(--text-success);
+  --color-ld-text-inverse: var(--text-inverse);
+  --color-ld-text-on-dark-muted: var(--text-on-dark-muted);
   --color-ld-border-default: var(--border-default);
   --color-ld-border-hover: var(--border-hover);
   --color-ld-border-active: var(--border-active);
+  --color-ld-border-dark: var(--border-dark);
 
   --font-ui: var(--font-heebo), system-ui, sans-serif;
   --font-document: var(--font-frank-ruhl), Georgia, serif;
 }
 
 body {
-  background: var(--bg-primary);
+  background: var(--bg-secondary);
   color: var(--text-primary);
   font-family: var(--font-heebo), system-ui, sans-serif;
   font-size: 14px;
   line-height: 1.5;
 }
 
-/* Document preview text styles */
+/* כותרות במסמך עצמו (לא בממשק) — נשארות עם פונט סריפי */
 .doc-body {
   font-family: var(--font-frank-ruhl), Georgia, serif;
   font-size: 15px;
@@ -68,7 +93,7 @@ body {
   font-family: var(--font-frank-ruhl), Georgia, serif;
 }
 
-/* Filled / active / placeholder values in document preview */
+/* תצוגת ערכים בתצוגה המקדימה של המסמך */
 .doc-filled {
   background: var(--color-accent-light);
   padding: 1px 4px;
