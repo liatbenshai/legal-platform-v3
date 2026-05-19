@@ -1,11 +1,12 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
-import type { Client } from '@/lib/types'
+import type { Client, DocumentType } from '@/lib/types'
 
 interface ClientRow {
   id: string
   user_id: string
   display_name: string
   notes: string | null
+  planned_doc_types: string[] | null
   created_at: string
   updated_at: string
 }
@@ -16,6 +17,7 @@ function mapRow(row: ClientRow): Client {
     userId: row.user_id,
     displayName: row.display_name,
     notes: row.notes ?? undefined,
+    plannedDocTypes: (row.planned_doc_types ?? []) as DocumentType[],
     createdAt: new Date(row.created_at),
     updatedAt: new Date(row.updated_at),
   }
@@ -47,42 +49,54 @@ export async function getClient(
   return data ? mapRow(data as ClientRow) : null
 }
 
+export interface ClientCreateInput {
+  displayName: string
+  notes?: string
+  plannedDocTypes?: DocumentType[]
+}
+
 export async function createClient(
   supabase: SupabaseClient,
   userId: string,
-  displayName: string,
-  notes?: string
+  data: ClientCreateInput
 ): Promise<Client> {
-  const { data, error } = await supabase
+  const { data: row, error } = await supabase
     .from('clients')
     .insert({
       user_id: userId,
-      display_name: displayName,
-      notes: notes ?? null,
+      display_name: data.displayName,
+      notes: data.notes ?? null,
+      planned_doc_types: data.plannedDocTypes ?? [],
     })
     .select()
     .single()
   if (error) throw error
-  return mapRow(data as ClientRow)
+  return mapRow(row as ClientRow)
+}
+
+export interface ClientUpdateInput {
+  displayName: string
+  notes?: string
+  plannedDocTypes?: DocumentType[]
 }
 
 export async function updateClient(
   supabase: SupabaseClient,
   id: string,
-  displayName: string,
-  notes: string | undefined
+  data: ClientUpdateInput
 ): Promise<Client> {
-  const { data, error } = await supabase
+  const { data: row, error } = await supabase
     .from('clients')
     .update({
-      display_name: displayName,
-      notes: notes ?? null,
+      display_name: data.displayName,
+      notes: data.notes ?? null,
+      planned_doc_types: data.plannedDocTypes ?? [],
     })
     .eq('id', id)
     .select()
     .single()
   if (error) throw error
-  return mapRow(data as ClientRow)
+  return mapRow(row as ClientRow)
 }
 
 export async function deleteClient(

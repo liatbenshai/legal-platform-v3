@@ -27,7 +27,6 @@ interface ActorPickerTabProps {
 
 export function ActorPickerTab({
   clientId,
-  label,
   multiple,
   selectedIds,
   selectedPersons,
@@ -59,6 +58,7 @@ export function ActorPickerTab({
       const [firstName, ...rest] = profile.fullName.trim().split(/\s+/)
       const lastName = rest.join(' ') || firstName
       const person = await createPerson(supabase, clientId, {
+        role: 'contact',
         firstName,
         lastName,
         idNumber: profile.idNumber,

@@ -1,4 +1,4 @@
-export type { Gender, Person } from './person'
+export type { Gender, Person, PersonRole } from './person'
 export type { Client } from './client'
 export type {
   ActorRole,

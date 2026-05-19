@@ -1,0 +1,5 @@
+חשוב: לאחר שמעלים את ה-ZIP, צריך גם למחוק קובץ אחד מהפרויקט:
+
+src/components/clients/NewClientModal.tsx
+
+הקובץ הזה כבר לא בשימוש (החלפנו אותו בדף /clients/new).

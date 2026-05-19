@@ -15,6 +15,7 @@ import {
 const david: Person = {
   id: 'p1',
   clientId: 'c1',
+  role: 'primary',
   firstName: 'דוד',
   lastName: 'כהן',
   idNumber: '123456789',
@@ -29,6 +30,7 @@ const david: Person = {
 const sara: Person = {
   id: 'p2',
   clientId: 'c1',
+  role: 'partner',
   firstName: 'שרה',
   lastName: 'לוי',
   idNumber: '987654321',
@@ -43,6 +45,7 @@ const sara: Person = {
 const rachel: Person = {
   id: 'p3',
   clientId: 'c1',
+  role: 'contact',
   firstName: 'רחל',
   lastName: 'אברהם',
   idNumber: '111222333',

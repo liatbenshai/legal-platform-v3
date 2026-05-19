@@ -132,28 +132,32 @@ export default function ClientDetailPage() {
     }
   }
 
-  const loadAll = useCallback(async () => {
-    setIsLoading(true)
-    setError(null)
-    try {
-      const [c, p, d] = await Promise.all([
-        getClient(supabase, clientId),
-        getPersons(supabase, clientId),
-        getDocuments(supabase, clientId),
-      ])
-      setClient(c)
-      setPersons(p)
-      setDocuments(d)
-    } catch {
-      setError('שגיאה בטעינת תיק הלקוח')
-    } finally {
-      setIsLoading(false)
+  useEffect(() => {
+    let cancelled = false
+
+    Promise.all([
+      getClient(supabase, clientId),
+      getPersons(supabase, clientId),
+      getDocuments(supabase, clientId),
+    ])
+      .then(([c, p, d]) => {
+        if (cancelled) return
+        setClient(c)
+        setPersons(p)
+        setDocuments(d)
+        setError(null)
+        setIsLoading(false)
+      })
+      .catch(() => {
+        if (cancelled) return
+        setError('שגיאה בטעינת תיק הלקוח')
+        setIsLoading(false)
+      })
+
+    return () => {
+      cancelled = true
     }
   }, [supabase, clientId])
-
-  useEffect(() => {
-    loadAll()
-  }, [loadAll])
 
   const reloadPersons = useCallback(async () => {
     try {
@@ -177,12 +181,11 @@ export default function ClientDetailPage() {
     }
     setIsSavingClient(true)
     try {
-      const updated = await updateClient(
-        supabase,
-        client.id,
-        trimmed,
-        client.notes
-      )
+      const updated = await updateClient(supabase, client.id, {
+        displayName: trimmed,
+        notes: client.notes,
+        plannedDocTypes: client.plannedDocTypes,
+      })
       setClient(updated)
       setIsEditingName(false)
     } catch {
@@ -202,12 +205,11 @@ export default function ClientDetailPage() {
     }
     setIsSavingClient(true)
     try {
-      const updated = await updateClient(
-        supabase,
-        client.id,
-        client.displayName,
-        newNotes
-      )
+      const updated = await updateClient(supabase, client.id, {
+        displayName: client.displayName,
+        notes: newNotes,
+        plannedDocTypes: client.plannedDocTypes,
+      })
       setClient(updated)
       setIsEditingNotes(false)
     } catch {

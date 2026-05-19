@@ -1,66 +1,60 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
-import { ClientCard } from '@/components/clients/ClientCard'
-import { NewClientModal } from '@/components/clients/NewClientModal'
+import { TopNav } from '@/components/layout/TopNav'
 import { createClient } from '@/lib/db/supabase'
+import { DOC_TYPE_CONFIGS } from '@/lib/documents/type-config'
 import { useUser } from '@/lib/hooks/useUser'
-import type { Client } from '@/lib/types'
+import type { Client, DocumentType } from '@/lib/types'
 
-interface ClientRowWithDocs {
+interface ClientRowWithExtras {
   id: string
   user_id: string
   display_name: string
   notes: string | null
+  planned_doc_types: string[] | null
   created_at: string
   updated_at: string
   documents: Array<{ count: number }> | null
+  persons: Array<{ id: string }> | null
 }
 
-interface ClientWithCount {
+interface ClientCard {
   client: Client
   documentCount: number
+  personCount: number
 }
 
-function mapRow(row: ClientRowWithDocs): ClientWithCount {
+function mapRow(row: ClientRowWithExtras): ClientCard {
   return {
     client: {
       id: row.id,
       userId: row.user_id,
       displayName: row.display_name,
       notes: row.notes ?? undefined,
+      plannedDocTypes: (row.planned_doc_types ?? []) as DocumentType[],
       createdAt: new Date(row.created_at),
       updatedAt: new Date(row.updated_at),
     },
     documentCount: row.documents?.[0]?.count ?? 0,
+    personCount: row.persons?.length ?? 0,
   }
+}
+
+function formatDate(d: Date): string {
+  const day = String(d.getDate()).padStart(2, '0')
+  const month = String(d.getMonth() + 1).padStart(2, '0')
+  const year = d.getFullYear()
+  return `${day}/${month}/${year}`
 }
 
 export default function ClientsPage() {
   const { user, loading: userLoading } = useUser()
-  const [clients, setClients] = useState<ClientWithCount[]>([])
+  const [clients, setClients] = useState<ClientCard[]>([])
   const [searchTerm, setSearchTerm] = useState('')
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [isModalOpen, setIsModalOpen] = useState(false)
-
-  const loadClients = useCallback(async () => {
-    if (!user) return
-    const supabase = createClient()
-    const { data, error: queryError } = await supabase
-      .from('clients')
-      .select('*, documents(count)')
-      .eq('user_id', user.id)
-      .order('updated_at', { ascending: false })
-    if (queryError) {
-      setError('שגיאה בטעינת הלקוחות. נסי לרענן את הדף.')
-      return
-    }
-    const mapped = ((data ?? []) as ClientRowWithDocs[]).map(mapRow)
-    setClients(mapped)
-    setError(null)
-  }, [user])
 
   useEffect(() => {
     if (userLoading) return
@@ -73,7 +67,7 @@ export default function ClientsPage() {
     const supabase = createClient()
     supabase
       .from('clients')
-      .select('*, documents(count)')
+      .select('*, documents(count), persons(id)')
       .eq('user_id', user.id)
       .order('updated_at', { ascending: false })
       .then(({ data, error: queryError }) => {
@@ -83,7 +77,7 @@ export default function ClientsPage() {
           setIsLoading(false)
           return
         }
-        const mapped = ((data ?? []) as ClientRowWithDocs[]).map(mapRow)
+        const mapped = ((data ?? []) as ClientRowWithExtras[]).map(mapRow)
         setClients(mapped)
         setError(null)
         setIsLoading(false)
@@ -109,85 +103,69 @@ export default function ClientsPage() {
         backgroundColor: 'var(--bg-secondary)',
       }}
     >
-      <header
-        style={{
-          backgroundColor: '#fff',
-          borderBottom: '1px solid var(--border-default)',
-        }}
-      >
-        <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
-          <h1
-            className="doc-title"
-            style={{
-              fontSize: 20,
-              fontWeight: 500,
-              color: 'var(--color-primary)',
-              margin: 0,
-            }}
-          >
-            תיקי לקוחות
-          </h1>
-          <Link
-            href="/dashboard"
-            style={{
-              fontSize: 13,
-              color: 'var(--text-secondary)',
-              textDecoration: 'none',
-            }}
-            className="hover:text-slate-900"
-          >
-            → ללוח המחוונים
-          </Link>
-        </div>
-      </header>
+      <TopNav clientsCount={clients.length} />
 
       <div className="max-w-6xl mx-auto px-6 py-8">
-        <div className="flex flex-col sm:flex-row gap-3 mb-6">
-          <input
-            type="text"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="חיפוש לקוח לפי שם..."
-            aria-label="חיפוש לקוח"
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'flex-start',
+            justifyContent: 'space-between',
+            marginBottom: 22,
+            gap: 12,
+            flexWrap: 'wrap',
+          }}
+        >
+          <div>
+            <h1
+              style={{
+                margin: '0 0 4px',
+                fontSize: 22,
+                fontWeight: 500,
+                color: 'var(--text-primary)',
+              }}
+            >
+              תיקי לקוחות
+            </h1>
+            <p
+              style={{
+                margin: 0,
+                fontSize: 13,
+                color: 'var(--text-secondary)',
+              }}
+            >
+              {clients.length} תיקים סך הכל
+            </p>
+          </div>
+          <Link
+            href="/clients/new"
             style={{
-              flex: 1,
-              padding: '9px 12px',
-              fontSize: 14,
-              backgroundColor: '#fff',
-              border: '0.5px solid var(--border-hover)',
-              borderRadius: 4,
-              color: 'var(--text-primary)',
-            }}
-          />
-          <button
-            type="button"
-            onClick={() => setIsModalOpen(true)}
-            style={{
-              padding: '9px 18px',
+              padding: '9px 16px',
               fontSize: 13,
               fontWeight: 500,
               backgroundColor: 'var(--color-primary)',
               color: '#fff',
-              border: 'none',
-              borderRadius: 4,
-              whiteSpace: 'nowrap',
-              cursor: 'pointer',
+              borderRadius: 6,
+              textDecoration: 'none',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
             }}
           >
-            + לקוח חדש
-          </button>
+            <i className="ti ti-plus" style={{ fontSize: 14 }} aria-hidden="true" />
+            לקוח חדש
+          </Link>
         </div>
 
         {error && (
           <div
-            role="alert"
             style={{
-              marginBottom: 20,
-              padding: '12px 16px',
+              marginBottom: 18,
+              padding: '10px 14px',
               backgroundColor: '#FEE2E2',
               border: '0.5px solid #FCA5A5',
+              borderRadius: 6,
               color: '#991B1B',
-              borderRadius: 4,
               fontSize: 13,
             }}
           >
@@ -195,63 +173,229 @@ export default function ClientsPage() {
           </div>
         )}
 
+        {/* חיפוש */}
+        {clients.length > 0 && (
+          <div style={{ marginBottom: 16 }}>
+            <input
+              type="search"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="חיפוש לפי שם תיק..."
+              style={{
+                width: '100%',
+                maxWidth: 360,
+                padding: '8px 12px',
+                fontSize: 13,
+                border: '0.5px solid var(--border-hover)',
+                borderRadius: 6,
+                backgroundColor: '#fff',
+                fontFamily: 'inherit',
+              }}
+            />
+          </div>
+        )}
+
+        {/* רשימת לקוחות */}
         {isLoading ? (
           <div
-            className="text-center py-12"
-            style={{ color: 'var(--text-muted)', fontSize: 13 }}
+            style={{
+              padding: 40,
+              textAlign: 'center',
+              color: 'var(--text-muted)',
+              fontSize: 13,
+            }}
           >
-            טוען לקוחות...
+            טוען...
           </div>
         ) : clients.length === 0 ? (
-          <div className="text-center py-16">
+          <div
+            style={{
+              padding: 60,
+              textAlign: 'center',
+              backgroundColor: '#fff',
+              border: '0.5px dashed var(--border-hover)',
+              borderRadius: 8,
+            }}
+          >
+            <i
+              className="ti ti-users"
+              style={{
+                fontSize: 36,
+                color: 'var(--text-muted)',
+              }}
+              aria-hidden="true"
+            />
             <p
               style={{
-                fontSize: 16,
-                fontWeight: 500,
+                margin: '12px 0 4px',
+                fontSize: 15,
                 color: 'var(--text-primary)',
-                margin: '0 0 8px',
+                fontWeight: 500,
               }}
             >
-              אין לקוחות בתיק שלך
+              אין עדיין תיקי לקוחות
             </p>
             <p
               style={{
+                margin: '0 0 16px',
                 fontSize: 13,
                 color: 'var(--text-secondary)',
-                margin: 0,
               }}
             >
-              לחצי על &quot;לקוח חדש&quot; כדי להוסיף תיק ראשון
+              צרי את התיק הראשון שלך כדי להתחיל
             </p>
+            <Link
+              href="/clients/new"
+              style={{
+                padding: '9px 18px',
+                fontSize: 13,
+                fontWeight: 500,
+                backgroundColor: 'var(--color-primary)',
+                color: '#fff',
+                borderRadius: 6,
+                textDecoration: 'none',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+              }}
+            >
+              <i className="ti ti-plus" style={{ fontSize: 14 }} aria-hidden="true" />
+              לקוח חדש
+            </Link>
           </div>
         ) : filtered.length === 0 ? (
           <div
-            className="text-center py-12"
-            style={{ color: 'var(--text-muted)', fontSize: 13 }}
+            style={{
+              padding: 40,
+              textAlign: 'center',
+              backgroundColor: '#fff',
+              border: '0.5px dashed var(--border-hover)',
+              borderRadius: 6,
+              color: 'var(--text-muted)',
+              fontSize: 13,
+            }}
           >
-            לא נמצאו לקוחות התואמים את החיפוש &quot;{searchTerm}&quot;
+            לא נמצאו תיקים התואמים את החיפוש
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filtered.map((c) => (
-              <ClientCard
-                key={c.client.id}
-                client={c.client}
-                documentCount={c.documentCount}
-              />
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns:
+                'repeat(auto-fill, minmax(280px, 1fr))',
+              gap: 12,
+            }}
+          >
+            {filtered.map(({ client, documentCount }) => (
+              <Link
+                key={client.id}
+                href={`/clients/${client.id}`}
+                style={{
+                  display: 'block',
+                  backgroundColor: '#fff',
+                  border: '0.5px solid var(--border-default)',
+                  borderRadius: 8,
+                  padding: 18,
+                  textDecoration: 'none',
+                  color: 'inherit',
+                }}
+              >
+                <h3
+                  style={{
+                    fontSize: 16,
+                    fontWeight: 500,
+                    color: 'var(--text-primary)',
+                    margin: '0 0 8px',
+                  }}
+                >
+                  {client.displayName}
+                </h3>
+
+                {/* תגיות סוגי מסמכים מתוכננים */}
+                {client.plannedDocTypes.length > 0 && (
+                  <div
+                    style={{
+                      display: 'flex',
+                      flexWrap: 'wrap',
+                      gap: 4,
+                      marginBottom: 12,
+                    }}
+                  >
+                    {client.plannedDocTypes.map((t) => (
+                      <span
+                        key={t}
+                        style={{
+                          fontSize: 10,
+                          padding: '2px 8px',
+                          backgroundColor: 'var(--color-accent-bg)',
+                          color: 'var(--status-review-fg)',
+                          border: '0.5px solid var(--color-accent)',
+                          borderRadius: 9,
+                          fontWeight: 500,
+                        }}
+                      >
+                        {DOC_TYPE_CONFIGS[t]?.label ?? t}
+                      </span>
+                    ))}
+                  </div>
+                )}
+
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    fontSize: 12,
+                    color: 'var(--text-secondary)',
+                    paddingTop: client.plannedDocTypes.length > 0 ? 0 : 8,
+                    borderTop:
+                      client.plannedDocTypes.length > 0
+                        ? 'none'
+                        : '0.5px solid var(--border-default)',
+                  }}
+                >
+                  <span
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 4,
+                    }}
+                  >
+                    <i
+                      className="ti ti-files"
+                      style={{ fontSize: 13 }}
+                      aria-hidden="true"
+                    />
+                    {documentCount}{' '}
+                    {documentCount === 1 ? 'מסמך' : 'מסמכים'}
+                  </span>
+                  <span style={{ color: 'var(--text-muted)' }}>
+                    {formatDate(client.updatedAt)}
+                  </span>
+                </div>
+
+                {client.notes && (
+                  <p
+                    style={{
+                      marginTop: 10,
+                      paddingTop: 10,
+                      borderTop: '0.5px solid var(--border-default)',
+                      fontSize: 12,
+                      color: 'var(--text-muted)',
+                      display: '-webkit-box',
+                      WebkitLineClamp: 2,
+                      WebkitBoxOrient: 'vertical',
+                      overflow: 'hidden',
+                    }}
+                  >
+                    {client.notes}
+                  </p>
+                )}
+              </Link>
             ))}
           </div>
         )}
       </div>
-
-      <NewClientModal
-        open={isModalOpen}
-        userId={user?.id ?? null}
-        onClose={() => setIsModalOpen(false)}
-        onSaved={() => {
-          void loadClients()
-        }}
-      />
     </main>
   )
 }

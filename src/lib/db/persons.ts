@@ -1,9 +1,10 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
-import type { Gender, Person } from '@/lib/types'
+import type { Gender, Person, PersonRole } from '@/lib/types'
 
 interface PersonRow {
   id: string
   client_id: string
+  role: PersonRole
   first_name: string
   last_name: string
   id_number: string
@@ -22,6 +23,7 @@ function mapRow(row: PersonRow): Person {
   return {
     id: row.id,
     clientId: row.client_id,
+    role: row.role,
     firstName: row.first_name,
     lastName: row.last_name,
     idNumber: row.id_number,
@@ -36,6 +38,7 @@ function mapRow(row: PersonRow): Person {
 
 function toColumns(data: PersonInput): Record<string, unknown> {
   return {
+    role: data.role,
     first_name: data.firstName,
     last_name: data.lastName,
     id_number: data.idNumber,
@@ -61,6 +64,21 @@ export async function getPersons(
     .order('created_at', { ascending: true })
   if (error) throw error
   return ((data ?? []) as PersonRow[]).map(mapRow)
+}
+
+/** שולף את האדם הראשי של תיק (role='primary'). מחזיר null אם אין. */
+export async function getPrimaryPerson(
+  supabase: SupabaseClient,
+  clientId: string
+): Promise<Person | null> {
+  const { data, error } = await supabase
+    .from('persons')
+    .select('*')
+    .eq('client_id', clientId)
+    .eq('role', 'primary')
+    .maybeSingle()
+  if (error) throw error
+  return data ? mapRow(data as PersonRow) : null
 }
 
 export async function getPerson(

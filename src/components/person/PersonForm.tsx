@@ -81,9 +81,15 @@ export function PersonForm({
       })
 
       const supabase = createClient()
+      // PersonForm משמש כיום להוספת אנשי קשר נוספים בלבד (לא ראשי/בן זוג).
+      // אם עורכים אדם קיים — שומרים את התפקיד שלו; אחרת — איש קשר רגיל.
+      const role = initialData?.role ?? 'contact'
       const person = initialData
-        ? await updatePerson(supabase, initialData.id, validated)
-        : await createPerson(supabase, clientId, validated)
+        ? await updatePerson(supabase, initialData.id, {
+            ...validated,
+            role,
+          })
+        : await createPerson(supabase, clientId, { ...validated, role })
 
       onSuccess?.(person)
     } catch (error) {
