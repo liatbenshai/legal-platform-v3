@@ -47,8 +47,6 @@ export default function ClientsPage() {
 
   const loadClients = useCallback(async () => {
     if (!user) return
-    setIsLoading(true)
-    setError(null)
     const supabase = createClient()
     const { data, error: queryError } = await supabase
       .from('clients')
@@ -57,22 +55,44 @@ export default function ClientsPage() {
       .order('updated_at', { ascending: false })
     if (queryError) {
       setError('שגיאה בטעינת הלקוחות. נסי לרענן את הדף.')
-      setIsLoading(false)
       return
     }
     const mapped = ((data ?? []) as ClientRowWithDocs[]).map(mapRow)
     setClients(mapped)
-    setIsLoading(false)
+    setError(null)
   }, [user])
 
   useEffect(() => {
     if (userLoading) return
     if (!user) {
-      setIsLoading(false)
+      Promise.resolve().then(() => setIsLoading(false))
       return
     }
-    void loadClients()
-  }, [user, userLoading, loadClients])
+
+    let cancelled = false
+    const supabase = createClient()
+    supabase
+      .from('clients')
+      .select('*, documents(count)')
+      .eq('user_id', user.id)
+      .order('updated_at', { ascending: false })
+      .then(({ data, error: queryError }) => {
+        if (cancelled) return
+        if (queryError) {
+          setError('שגיאה בטעינת הלקוחות. נסי לרענן את הדף.')
+          setIsLoading(false)
+          return
+        }
+        const mapped = ((data ?? []) as ClientRowWithDocs[]).map(mapRow)
+        setClients(mapped)
+        setError(null)
+        setIsLoading(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [user, userLoading])
 
   const filtered = useMemo(() => {
     const term = searchTerm.trim().toLowerCase()
