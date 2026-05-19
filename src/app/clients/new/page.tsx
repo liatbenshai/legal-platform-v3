@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { IsraeliDateField } from '@/components/common/IsraeliDateField'
 import { TopNav } from '@/components/layout/TopNav'
 import { createClient as createClientRecord } from '@/lib/db/clients'
 import { createPerson } from '@/lib/db/persons'
@@ -19,7 +20,7 @@ interface PersonFields {
   lastName: string
   idNumber: string
   gender: Gender
-  birthDate: string
+  birthDate: Date | undefined
   address: string
   city: string
   phone: string
@@ -31,7 +32,7 @@ const EMPTY_PERSON: PersonFields = {
   lastName: '',
   idNumber: '',
   gender: 'female',
-  birthDate: '',
+  birthDate: undefined,
   address: '',
   city: '',
   phone: '',
@@ -139,9 +140,7 @@ export default function NewClientPage() {
         lastName: primary.lastName.trim(),
         idNumber: primary.idNumber.trim(),
         gender: primary.gender,
-        birthDate: primary.birthDate
-          ? new Date(primary.birthDate)
-          : undefined,
+        birthDate: primary.birthDate,
         address: primary.address.trim(),
         city: primary.city.trim(),
         phone: primary.phone.trim() || undefined,
@@ -156,9 +155,7 @@ export default function NewClientPage() {
           lastName: partner.lastName.trim(),
           idNumber: partner.idNumber.trim(),
           gender: partner.gender,
-          birthDate: partner.birthDate
-            ? new Date(partner.birthDate)
-            : undefined,
+          birthDate: partner.birthDate,
           address: partner.address.trim() || primary.address.trim(),
           city: partner.city.trim() || primary.city.trim(),
           phone: partner.phone.trim() || undefined,
@@ -565,12 +562,11 @@ function PersonFieldsBlock({
           </select>
         </div>
         <div>
-          <label style={labelStyle}>תאריך לידה</label>
-          <input
-            type="date"
+          <IsraeliDateField
+            label="תאריך לידה"
             value={data.birthDate}
-            onChange={(e) => onChange('birthDate', e.target.value)}
-            style={inputStyle}
+            onChange={(d) => onChange('birthDate', d)}
+            variant="regular"
           />
         </div>
       </div>
