@@ -1,7 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
-import Link from 'next/link'
+import { useEffect, useState } from 'react'
 import {
   getLawyerProfile,
   upsertLawyerProfile,
@@ -9,6 +8,7 @@ import {
 import { createClient } from '@/lib/db/supabase'
 import { useUser } from '@/lib/hooks/useUser'
 import { EMPTY_LAWYER_PROFILE, type Gender } from '@/lib/types'
+import { TopNav } from '@/components/layout/TopNav'
 
 type FormState = typeof EMPTY_LAWYER_PROFILE
 
@@ -21,41 +21,44 @@ export default function SettingsPage() {
   const [error, setError] = useState<string | null>(null)
   const [savedAt, setSavedAt] = useState<Date | null>(null)
 
-  const load = useCallback(async () => {
-    if (!user) return
-    setIsLoading(true)
-    setError(null)
-    try {
-      const profile = await getLawyerProfile(supabase, user.id)
-      if (profile) {
-        setForm({
-          fullName: profile.fullName,
-          gender: profile.gender,
-          idNumber: profile.idNumber,
-          licenseNumber: profile.licenseNumber,
-          barAssociation: profile.barAssociation,
-          firmName: profile.firmName,
-          address: profile.address,
-          city: profile.city,
-          phone: profile.phone,
-          email: profile.email,
-        })
-      }
-    } catch {
-      setError('שגיאה בטעינת הפרופיל')
-    } finally {
-      setIsLoading(false)
-    }
-  }, [supabase, user])
-
   useEffect(() => {
     if (userLoading) return
     if (!user) {
-      setIsLoading(false)
+      Promise.resolve().then(() => setIsLoading(false))
       return
     }
-    void load()
-  }, [user, userLoading, load])
+
+    let cancelled = false
+    getLawyerProfile(supabase, user.id)
+      .then((profile) => {
+        if (cancelled) return
+        if (profile) {
+          setForm({
+            fullName: profile.fullName,
+            gender: profile.gender,
+            idNumber: profile.idNumber,
+            licenseNumber: profile.licenseNumber,
+            barAssociation: profile.barAssociation,
+            firmName: profile.firmName,
+            address: profile.address,
+            city: profile.city,
+            phone: profile.phone,
+            email: profile.email,
+          })
+        }
+        setError(null)
+        setIsLoading(false)
+      })
+      .catch(() => {
+        if (cancelled) return
+        setError('שגיאה בטעינת הפרופיל')
+        setIsLoading(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [user, userLoading, supabase])
 
   function update<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((s) => ({ ...s, [key]: value }))
@@ -94,51 +97,29 @@ export default function SettingsPage() {
     <main
       style={{ minHeight: '100vh', backgroundColor: 'var(--bg-secondary)' }}
     >
-      <header
-        style={{
-          backgroundColor: '#fff',
-          borderBottom: '1px solid var(--border-default)',
-        }}
-      >
-        <div className="max-w-3xl mx-auto px-6 py-4 flex items-center justify-between">
-          <h1
-            className="doc-title"
-            style={{
-              fontSize: 20,
-              fontWeight: 500,
-              color: 'var(--color-primary)',
-              margin: 0,
-            }}
-          >
-            הגדרות — פרופיל עו"ד
-          </h1>
-          <Link
-            href="/dashboard"
-            style={{
-              fontSize: 13,
-              color: 'var(--text-secondary)',
-              textDecoration: 'none',
-            }}
-          >
-            → ללוח המחוונים
-          </Link>
-        </div>
-      </header>
+      <TopNav />
 
       <div className="max-w-3xl mx-auto px-6 py-8">
-        <div
-          style={{
-            marginBottom: 16,
-            padding: '10px 12px',
-            backgroundColor: 'var(--color-accent-bg)',
-            borderRight: '3px solid var(--color-accent)',
-            borderRadius: 4,
-            fontSize: 12,
-            color: '#6B5544',
-            lineHeight: 1.5,
-          }}
-        >
-          הפרטים יישמרו פעם אחת בלבד וימולאו אוטומטית בכל מסמך שדורש אותך כעו"ד.
+        <div style={{ marginBottom: 22 }}>
+          <h1
+            style={{
+              margin: '0 0 4px',
+              fontSize: 22,
+              fontWeight: 500,
+              color: 'var(--text-primary)',
+            }}
+          >
+            הגדרות &mdash; פרופיל עו&quot;ד
+          </h1>
+          <p
+            style={{
+              margin: 0,
+              fontSize: 13,
+              color: 'var(--text-secondary)',
+            }}
+          >
+            הפרטים יישמרו פעם אחת בלבד וימולאו אוטומטית בכל מסמך שדורש אותך כעו&quot;ד.
+          </p>
         </div>
 
         {isLoading ? (

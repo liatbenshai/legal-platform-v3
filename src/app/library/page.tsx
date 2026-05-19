@@ -1,9 +1,9 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import Link from 'next/link'
 import { SectionEditor } from '@/components/library/SectionEditor'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
+import { TopNav } from '@/components/layout/TopNav'
 import { deleteUserTemplate, getTemplates } from '@/lib/db/templates'
 import { createClient } from '@/lib/db/supabase'
 import { useHiddenSections } from '@/lib/hooks/useHiddenSections'
@@ -87,11 +87,8 @@ export default function LibraryPage() {
   const loadUserSections = useCallback(async () => {
     if (!user) {
       setUserSections([])
-      setIsLoading(false)
       return
     }
-    setIsLoading(true)
-    setError(null)
     try {
       const supabase = createClient()
       const templates = await getTemplates(supabase, {
@@ -99,17 +96,41 @@ export default function LibraryPage() {
         userId: user.id,
       })
       setUserSections(templates.map(userToUnified))
+      setError(null)
     } catch {
       setError('שגיאה בטעינת הסעיפים האישיים')
-    } finally {
-      setIsLoading(false)
     }
   }, [user])
 
   useEffect(() => {
     if (userLoading) return
-    void loadUserSections()
-  }, [userLoading, loadUserSections])
+    if (!user) {
+      Promise.resolve().then(() => {
+        setUserSections([])
+        setIsLoading(false)
+      })
+      return
+    }
+
+    let cancelled = false
+    const supabase = createClient()
+    getTemplates(supabase, { isSystem: false, userId: user.id })
+      .then((templates) => {
+        if (cancelled) return
+        setUserSections(templates.map(userToUnified))
+        setError(null)
+        setIsLoading(false)
+      })
+      .catch(() => {
+        if (cancelled) return
+        setError('שגיאה בטעינת הסעיפים האישיים')
+        setIsLoading(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [user, userLoading])
 
   async function handleDelete() {
     if (!sectionToDelete?.dbId) return
@@ -176,50 +197,30 @@ export default function LibraryPage() {
         backgroundColor: 'var(--bg-secondary)',
       }}
     >
-      <header
-        style={{
-          backgroundColor: '#fff',
-          borderBottom: '1px solid var(--border-default)',
-        }}
-      >
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between gap-4">
+      <TopNav />
+
+      <div className="max-w-7xl mx-auto px-6 py-8">
+        <div style={{ marginBottom: 22 }}>
           <h1
-            className="doc-title"
             style={{
-              fontSize: 20,
+              margin: '0 0 4px',
+              fontSize: 22,
               fontWeight: 500,
-              color: 'var(--color-primary)',
-              margin: 0,
+              color: 'var(--text-primary)',
             }}
           >
             ספריית סעיפים
           </h1>
-          <div className="flex items-center gap-5">
-            <Link
-              href="/library/dictionary"
-              style={{
-                fontSize: 13,
-                color: 'var(--color-primary)',
-                textDecoration: 'none',
-              }}
-            >
-              מילון הטיות ←
-            </Link>
-            <Link
-              href="/dashboard"
-              style={{
-                fontSize: 13,
-                color: 'var(--text-secondary)',
-                textDecoration: 'none',
-              }}
-            >
-              → ללוח המחוונים
-            </Link>
-          </div>
+          <p
+            style={{
+              margin: 0,
+              fontSize: 13,
+              color: 'var(--text-secondary)',
+            }}
+          >
+            סעיפים מוכנים מראש לשילוב במסמכים, ותבניות מותאמות אישית.
+          </p>
         </div>
-      </header>
-
-      <div className="max-w-7xl mx-auto px-6 py-8">
         <div
           style={{
             backgroundColor: '#fff',

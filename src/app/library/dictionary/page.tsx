@@ -1,8 +1,8 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import Link from 'next/link'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
+import { TopNav } from '@/components/layout/TopNav'
 import {
   createUserDictionaryEntry,
   deleteUserDictionaryEntry,
@@ -49,26 +49,49 @@ export default function DictionaryPage() {
   const loadEntries = useCallback(async () => {
     if (!user) {
       setUserEntries([])
-      setIsLoading(false)
       return
     }
-    setIsLoading(true)
-    setError(null)
     try {
       const supabase = createClient()
       const entries = await getUserDictionaryEntries(supabase, user.id)
       setUserEntries(entries)
+      setError(null)
     } catch {
       setError('שגיאה בטעינת המילון. ייתכן שעדיין לא הרצת את ה-SQL שיצר את הטבלה.')
-    } finally {
-      setIsLoading(false)
     }
   }, [user])
 
   useEffect(() => {
     if (userLoading) return
-    void loadEntries()
-  }, [userLoading, loadEntries])
+    if (!user) {
+      Promise.resolve().then(() => {
+        setUserEntries([])
+        setIsLoading(false)
+      })
+      return
+    }
+
+    let cancelled = false
+    const supabase = createClient()
+    getUserDictionaryEntries(supabase, user.id)
+      .then((entries) => {
+        if (cancelled) return
+        setUserEntries(entries)
+        setError(null)
+        setIsLoading(false)
+      })
+      .catch(() => {
+        if (cancelled) return
+        setError(
+          'שגיאה בטעינת המילון. ייתכן שעדיין לא הרצת את ה-SQL שיצר את הטבלה.'
+        )
+        setIsLoading(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [user, userLoading])
 
   const merged = useMemo<MergedEntry[]>(() => {
     const list: MergedEntry[] = []
@@ -199,38 +222,30 @@ export default function DictionaryPage() {
     <main
       style={{ minHeight: '100vh', backgroundColor: 'var(--bg-secondary)' }}
     >
-      <header
-        style={{
-          backgroundColor: '#fff',
-          borderBottom: '1px solid var(--border-default)',
-        }}
-      >
-        <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between gap-4">
+      <TopNav />
+
+      <div className="max-w-6xl mx-auto px-6 py-8">
+        <div style={{ marginBottom: 22 }}>
           <h1
-            className="doc-title"
             style={{
-              fontSize: 20,
+              margin: '0 0 4px',
+              fontSize: 22,
               fontWeight: 500,
-              color: 'var(--color-primary)',
-              margin: 0,
+              color: 'var(--text-primary)',
             }}
           >
             מילון הטיות
           </h1>
-          <Link
-            href="/library"
+          <p
             style={{
+              margin: 0,
               fontSize: 13,
               color: 'var(--text-secondary)',
-              textDecoration: 'none',
             }}
           >
-            → לספריית הסעיפים
-          </Link>
+            הטיות לפי מגדר ומספר לשימוש אוטומטי במסמכים.
+          </p>
         </div>
-      </header>
-
-      <div className="max-w-6xl mx-auto px-6 py-8">
         <div
           style={{
             backgroundColor: '#fff',
@@ -518,7 +533,7 @@ export default function DictionaryPage() {
               הטייה חדשה
             </h2>
             <p className="text-sm text-slate-500 text-center mb-6">
-              לדוגמה: מפתח "מבקש", זכר "מבקש", נקבה "מבקשת", רבים "מבקשים".
+              לדוגמה: מפתח &quot;מבקש&quot;, זכר &quot;מבקש&quot;, נקבה &quot;מבקשת&quot;, רבים &quot;מבקשים&quot;.
               <br />ניתן להשתמש כ-<code dir="ltr" className="font-mono bg-slate-100 px-1 rounded">{'{{ממנה.מבקש}}'}</code> בסעיפים.
             </p>
 
