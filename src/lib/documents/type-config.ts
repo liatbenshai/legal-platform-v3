@@ -159,6 +159,22 @@ export const DOC_TYPE_CONFIGS: Record<DocumentType, DocTypeConfig> = {
         multiple: false,
       },
       {
+        id: 'witness-1',
+        kind: 'actor',
+        label: 'עד ראשון',
+        description: 'פרטי העד הראשון שיחתום על הצוואה.',
+        actorRole: 'עד1',
+        multiple: false,
+      },
+      {
+        id: 'witness-2',
+        kind: 'actor',
+        label: 'עד שני',
+        description: 'פרטי העד השני שיחתום על הצוואה.',
+        actorRole: 'עד2',
+        multiple: false,
+      },
+      {
         id: 'details',
         kind: 'details',
         label: 'פרטים',

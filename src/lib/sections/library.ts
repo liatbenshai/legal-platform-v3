@@ -53,6 +53,12 @@ import sec052 from '@templates/poa-medical/SEC_052.json'
 import sec053 from '@templates/poa-medical/SEC_053.json'
 import sec054 from '@templates/poa-medical/SEC_054.json'
 
+// === Will Individual sections (basic starters) ===
+import secW01 from '@templates/will-individual/SEC_W01.json'
+import secW02 from '@templates/will-individual/SEC_W02.json'
+import secW03 from '@templates/will-individual/SEC_W03.json'
+import secW04 from '@templates/will-individual/SEC_W04.json'
+
 import type { ActorRole, DocumentType } from '@/lib/types'
 
 export interface LibrarySectionVariant {
@@ -130,6 +136,11 @@ export const sectionLibrary: LibrarySection[] = [
   sec052,
   sec053,
   sec054,
+  // Will Individual
+  secW01,
+  secW02,
+  secW03,
+  secW04,
 ] as LibrarySection[]
 
 export const CATEGORY_LABELS: Record<DocumentType, string> = {
