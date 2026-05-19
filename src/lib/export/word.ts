@@ -14,7 +14,7 @@ import {
   type InflectedWord,
 } from '@/lib/engine/dictionary'
 import { renderDocument } from '@/lib/engine/renderer'
-import type { Document, DocumentDetails, Person } from '@/lib/types'
+import type { Document, DocumentDetails, EmbeddedPerson } from '@/lib/types'
 
 const FONT = 'David'
 const SIZE_TITLE = 32 // 16pt
@@ -25,7 +25,6 @@ const LINE_SPACING = 360 // 1.5 line spacing
 
 interface ExportOptions {
   document: Document
-  persons: Person[]
   dictionary?: Record<string, InflectedWord>
   details?: DocumentDetails
 }
@@ -149,7 +148,7 @@ function makeLabelValueParagraph(label: string, value: string): Paragraph {
   })
 }
 
-function makePersonBlock(heading: string, person: Person): Paragraph[] {
+function makePersonBlock(heading: string, person: EmbeddedPerson): Paragraph[] {
   const paragraphs: Paragraph[] = [
     new Paragraph({
       bidirectional: true,
@@ -192,7 +191,7 @@ function makePersonBlock(heading: string, person: Person): Paragraph[] {
 }
 
 function getAttorneyTitle(
-  attorneys: Person[],
+  attorneys: EmbeddedPerson[],
   dict: Record<string, InflectedWord>
 ): string {
   const entry = dict['מיופה_כוח'] ?? staticDictionary['מיופה_כוח']
@@ -229,9 +228,7 @@ function makePartiesSection(opts: ExportOptions): Paragraph[] {
   // Principal block (always first)
   const principalActor = opts.document.actors.find((a) => a.role === 'ממנה')
   if (principalActor) {
-    const principalPersons = principalActor.personIds
-      .map((id) => opts.persons.find((p) => p.id === id))
-      .filter((p): p is Person => p !== undefined)
+    const principalPersons = principalActor.persons ?? []
     if (principalPersons.length > 0) {
       paragraphs.push(...makePersonBlock('פרטי הממנה', principalPersons[0]))
     }
@@ -240,9 +237,7 @@ function makePartiesSection(opts: ExportOptions): Paragraph[] {
   // Attorneys block
   const attorneyActor = opts.document.actors.find((a) => a.role === 'מיופה')
   if (attorneyActor) {
-    const attorneyPersons = attorneyActor.personIds
-      .map((id) => opts.persons.find((p) => p.id === id))
-      .filter((p): p is Person => p !== undefined)
+    const attorneyPersons = attorneyActor.persons ?? []
 
     if (attorneyPersons.length === 1) {
       const title = getAttorneyTitle(attorneyPersons, dict)
@@ -267,7 +262,6 @@ function safeFilename(title: string): string {
 export async function exportToWord(opts: ExportOptions): Promise<void> {
   const fromTemplates = renderDocument({
     document: opts.document,
-    persons: opts.persons,
     dictionary: opts.dictionary,
   })
   const fromDetails = opts.details

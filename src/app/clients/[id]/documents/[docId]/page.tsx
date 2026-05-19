@@ -8,7 +8,7 @@ import { FormPanel } from '@/components/editor/v2/FormPanel'
 import { StepNavigation } from '@/components/editor/v2/StepNavigation'
 import { StepTabs } from '@/components/editor/v2/StepTabs'
 import { TitleBar } from '@/components/editor/v2/TitleBar'
-import { ActorPickerTab } from '@/components/editor/v2/tabs/ActorPickerTab'
+import { ActorInlineTab } from '@/components/editor/v2/tabs/ActorInlineTab'
 import { DetailsTab } from '@/components/editor/v2/tabs/DetailsTab'
 import { DirectivesTab } from '@/components/editor/v2/tabs/DirectivesTab'
 import { PowersTab } from '@/components/editor/v2/tabs/PowersTab'
@@ -46,6 +46,7 @@ import {
   type DocumentSection,
   type DocumentStatus,
   type DocumentType,
+  type EmbeddedPerson,
   type Person,
   type SectionTemplate,
 } from '@/lib/types'
@@ -90,24 +91,24 @@ function parseDomains(variables: Record<string, string>): DocumentType[] {
   return parsed.length > 0 ? parsed : ALL_DOMAINS
 }
 
-function getActorPersonIds(
+function getActorPersons(
   doc: Document | null,
   role: DocumentActor['role']
-): string[] {
+): EmbeddedPerson[] {
   if (!doc) return []
-  return doc.actors.find((a) => a.role === role)?.personIds ?? []
+  return doc.actors.find((a) => a.role === role)?.persons ?? []
 }
 
-function setActor(
+function setActorPersons(
   doc: Document,
   role: DocumentActor['role'],
-  personIds: string[]
+  persons: EmbeddedPerson[]
 ): Document {
   const others = doc.actors.filter((a) => a.role !== role)
-  if (personIds.length === 0) {
+  if (persons.length === 0) {
     return { ...doc, actors: others }
   }
-  return { ...doc, actors: [...others, { role, personIds }] }
+  return { ...doc, actors: [...others, { role, persons }] }
 }
 
 function templateToLibrarySection(t: SectionTemplate): LibrarySection {
@@ -152,13 +153,14 @@ export default function DocumentEditorPage() {
 
   const [client, setClient] = useState<Client | null>(null)
   const [document, setDocument] = useState<Document | null>(null)
-  const [persons, setPersons] = useState<Person[]>([])
+  /** האדם הראשי של הלקוח — לצורך הצעת מילוי אוטומטי בעורך */
+  const [clientPrimary, setClientPrimary] = useState<Person | null>(null)
+  /** בן/בת זוג של הלקוח — אם קיים */
+  const [clientPartner, setClientPartner] = useState<Person | null>(null)
   const [userSections, setUserSections] = useState<LibrarySection[]>([])
   const [userDictionary, setUserDictionary] = useState<UserDictionaryEntry[]>(
     []
   )
-
-  const [activeTab, setActiveTab] = useState<string>('')
 
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -171,8 +173,6 @@ export default function DocumentEditorPage() {
 
   useEffect(() => {
     let cancelled = false
-    setIsLoading(true)
-    setError(null)
     Promise.all([
       getDocument(supabase, docId),
       getPersons(supabase, clientId),
@@ -184,8 +184,10 @@ export default function DocumentEditorPage() {
           setError('המסמך לא נמצא')
         } else {
           setDocument(d)
-          setPersons(p)
           setClient(c)
+          setClientPrimary(p.find((x) => x.role === 'primary') ?? null)
+          setClientPartner(p.find((x) => x.role === 'partner') ?? null)
+          setError(null)
         }
         setIsLoading(false)
       })
@@ -272,12 +274,12 @@ export default function DocumentEditorPage() {
     [document]
   )
 
-  // Initialize activeTab to first tab id of the doc type
-  useEffect(() => {
-    if (!activeTab && docConfig && docConfig.tabs.length > 0) {
-      setActiveTab(docConfig.tabs[0].id)
-    }
-  }, [activeTab, docConfig])
+  // activeTab מחושב מ-state פנימי, ואם הוא ריק – נופל לטאב הראשון של docConfig.
+  // כך נמנע setState בתוך useEffect.
+  const [activeTabOverride, setActiveTabOverride] = useState<string>('')
+  const activeTab =
+    activeTabOverride || docConfig?.tabs[0]?.id || ''
+  const setActiveTab = setActiveTabOverride
 
   const actorTabs = useMemo(
     () =>
@@ -288,27 +290,15 @@ export default function DocumentEditorPage() {
     [docConfig]
   )
 
-  function getPersonsForRole(role: DocumentActor['role']): Person[] {
+  function getPersonsForRole(role: DocumentActor['role']): EmbeddedPerson[] {
     if (!document) return []
-    return getActorPersonIds(document, role)
-      .map((id) => persons.find((p) => p.id === id))
-      .filter((p): p is Person => p !== undefined)
+    return getActorPersons(document, role)
   }
 
   const primaryActorRole = actorTabs[0]?.actorRole
   const primaryActor = primaryActorRole
     ? getPersonsForRole(primaryActorRole)[0] ?? null
     : null
-
-  // Auto-update title when primary actor is set (only if title is still default)
-  useEffect(() => {
-    if (!document || !primaryActor || !docConfig) return
-    const desiredTitle = docConfig.defaultTitle(primaryActor)
-    if (document.title === 'מסמך חדש' && document.title !== desiredTitle) {
-      applyChange((doc) => ({ ...doc, title: desiredTitle }))
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [primaryActor?.id])
 
   const allowedDomains = useMemo(
     () => (document ? parseDomains(document.variables) : ALL_DOMAINS),
@@ -353,19 +343,37 @@ export default function DocumentEditorPage() {
     if (!document) return []
     const fromTemplates = renderDocument({
       document,
-      persons,
       dictionary: mergedDictionary,
     })
     const fromDetails = buildDetailsSections(details)
     return [...fromDetails, ...fromTemplates]
-  }, [document, persons, mergedDictionary, details])
+  }, [document, mergedDictionary, details])
 
-  function handlePersonCreated(p: Person) {
-    setPersons((curr) => [...curr, p])
-  }
-
-  function handleActorChange(role: DocumentActor['role'], ids: string[]) {
-    applyChange((doc) => setActor(doc, role, ids))
+  function handleActorPersonsChange(
+    role: DocumentActor['role'],
+    nextPersons: EmbeddedPerson[]
+  ) {
+    applyChange((doc) => {
+      let next = setActorPersons(doc, role, nextPersons)
+      // אם זה השחקן הראשי וטרם הותאמה הכותרת – עדכון אוטומטי של הכותרת.
+      if (
+        docConfig &&
+        primaryActorRole === role &&
+        next.title === 'מסמך חדש' &&
+        nextPersons.length > 0
+      ) {
+        const person = nextPersons[0]
+        // defaultTitle מצפה ל-Person שלם — נבנה Person בסיסי מ-EmbeddedPerson
+        const pseudoPerson: Person = {
+          id: '',
+          clientId: '',
+          role: 'contact',
+          ...person,
+        }
+        next = { ...next, title: docConfig.defaultTitle(pseudoPerson) }
+      }
+      return next
+    })
   }
 
   function handleDomainToggle(domain: DocumentType) {
@@ -442,7 +450,6 @@ export default function DocumentEditorPage() {
     try {
       await exportToWord({
         document,
-        persons,
         dictionary: mergedDictionary,
         details,
       })
@@ -517,9 +524,13 @@ export default function DocumentEditorPage() {
             ? labels.female
             : labels.male
       const names = list
-        .map((p) => `${p.firstName} ${p.lastName} (ת.ז. ${p.idNumber})`)
+        .map((p) => {
+          const idText = p.idNumber ? ` (ת.ז. ${p.idNumber})` : ''
+          return `${p.firstName} ${p.lastName}${idText}`.trim()
+        })
+        .filter((n) => n.length > 0)
         .join(', ')
-      lines.push(`${roleText}: ${names}`)
+      lines.push(`${roleText}: ${names || '[טרם מולא]'}`)
     }
     return lines.join('\n')
   })()
@@ -571,26 +582,27 @@ export default function DocumentEditorPage() {
       >
         <FormPanel stepTitle={stepTitle} stepDescription={stepDescription}>
           {activeTabSpec?.kind === 'actor' && activeTabSpec.actorRole && (
-            <ActorPickerTab
-              clientId={clientId}
-              label={activeTabSpec.label}
+            <ActorInlineTab
+              persons={getActorPersons(document, activeTabSpec.actorRole)}
               multiple={Boolean(activeTabSpec.multiple)}
-              selectedIds={getActorPersonIds(document, activeTabSpec.actorRole)}
-              selectedPersons={getPersonsForRole(activeTabSpec.actorRole)}
-              excludeIds={actorTabs
-                .filter((t) => t.actorRole !== activeTabSpec.actorRole)
-                .flatMap((t) =>
-                  t.actorRole ? getActorPersonIds(document, t.actorRole) : []
-                )}
-              onChange={(ids) =>
-                handleActorChange(activeTabSpec.actorRole!, ids)
+              onChange={(next) =>
+                handleActorPersonsChange(activeTabSpec.actorRole!, next)
               }
-              onPersonCreated={handlePersonCreated}
               roleSingularMale={ACTOR_LABELS[activeTabSpec.actorRole].male}
               roleSingularFemale={
                 ACTOR_LABELS[activeTabSpec.actorRole].female
               }
               rolePlural={ACTOR_LABELS[activeTabSpec.actorRole].plural}
+              clientPrimary={
+                activeTabSpec.actorRole === primaryActorRole
+                  ? clientPrimary
+                  : null
+              }
+              clientPartner={
+                activeTabSpec.actorRole === primaryActorRole
+                  ? clientPartner
+                  : null
+              }
               isLawyerRole={activeTabSpec.actorRole === 'עורך_דין'}
             />
           )}

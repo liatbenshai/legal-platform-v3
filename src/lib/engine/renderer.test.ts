@@ -54,11 +54,8 @@ const rachel: Person = {
   city: 'אילת',
 }
 
-const allPersons: Person[] = [david, sara, rachel]
-
 function makeCtx(opts: {
   actors?: DocumentActor[]
-  persons?: Person[]
   variables?: Record<string, string>
   sections?: DocumentSection[]
 }): RenderContext {
@@ -76,7 +73,7 @@ function makeCtx(opts: {
     createdAt: now,
     updatedAt: now,
   }
-  return { document, persons: opts.persons ?? allPersons }
+  return { document }
 }
 
 describe('renderText - global variables', () => {
@@ -99,7 +96,7 @@ describe('renderText - global variables', () => {
 })
 
 describe('renderText - person fields (single)', () => {
-  const ctx = makeCtx({ actors: [{ role: 'ממנה', personIds: ['p1'] }] })
+  const ctx = makeCtx({ actors: [{ role: 'ממנה', persons: [david] }] })
 
   it('שדה שם מחזיר שם פרטי + משפחה', () => {
     expect(renderText('{{ממנה.שם}}', ctx)).toBe('דוד כהן')
@@ -132,36 +129,36 @@ describe('renderText - person fields (single)', () => {
 
 describe('renderText - optional fields', () => {
   it('תאריך_לידה מוחזר בפורמט dd/mm/yyyy', () => {
-    const ctx = makeCtx({ actors: [{ role: 'ממנה', personIds: ['p1'] }] })
+    const ctx = makeCtx({ actors: [{ role: 'ממנה', persons: [david] }] })
     expect(renderText('{{ממנה.תאריך_לידה}}', ctx)).toBe('15/05/1980')
   })
 
   it('תאריך_לידה ריק לאדם בלי תאריך', () => {
-    const ctx = makeCtx({ actors: [{ role: 'ממנה', personIds: ['p3'] }] })
+    const ctx = makeCtx({ actors: [{ role: 'ממנה', persons: [rachel] }] })
     expect(renderText('{{ממנה.תאריך_לידה}}', ctx)).toBe('')
   })
 
   it('שדה טלפון מחזיר טלפון', () => {
-    const ctx = makeCtx({ actors: [{ role: 'ממנה', personIds: ['p1'] }] })
+    const ctx = makeCtx({ actors: [{ role: 'ממנה', persons: [david] }] })
     expect(renderText('{{ממנה.טלפון}}', ctx)).toBe('050-1234567')
   })
 
   it('שדה אימייל מחזיר אימייל', () => {
-    const ctx = makeCtx({ actors: [{ role: 'ממנה', personIds: ['p1'] }] })
+    const ctx = makeCtx({ actors: [{ role: 'ממנה', persons: [david] }] })
     expect(renderText('{{ממנה.אימייל}}', ctx)).toBe('david@example.com')
   })
 })
 
 describe('renderText - gender inflection', () => {
   it('זכר יחיד - יפעל', () => {
-    const ctx = makeCtx({ actors: [{ role: 'מיופה', personIds: ['p1'] }] })
+    const ctx = makeCtx({ actors: [{ role: 'מיופה', persons: [david] }] })
     expect(renderText('{{מיופה.יפעל}}', ctx)).toBe('יפעל')
     expect(renderText('{{מיופה.רשאי}}', ctx)).toBe('רשאי')
     expect(renderText('{{מיופה.תפקידו}}', ctx)).toBe('תפקידו')
   })
 
   it('נקבה יחידה - יפעל הופך לתפעל', () => {
-    const ctx = makeCtx({ actors: [{ role: 'מיופה', personIds: ['p2'] }] })
+    const ctx = makeCtx({ actors: [{ role: 'מיופה', persons: [sara] }] })
     expect(renderText('{{מיופה.יפעל}}', ctx)).toBe('תפעל')
     expect(renderText('{{מיופה.רשאי}}', ctx)).toBe('רשאית')
     expect(renderText('{{מיופה.תפקידו}}', ctx)).toBe('תפקידה')
@@ -169,7 +166,7 @@ describe('renderText - gender inflection', () => {
 
   it('רבים זכרים - יפעלו', () => {
     const ctx = makeCtx({
-      actors: [{ role: 'מיופה', personIds: ['p1', 'p1'] }],
+      actors: [{ role: 'מיופה', persons: [david, david] }],
     })
     expect(renderText('{{מיופה.יפעל}}', ctx)).toBe('יפעלו')
     expect(renderText('{{מיופה.רשאי}}', ctx)).toBe('רשאים')
@@ -177,7 +174,7 @@ describe('renderText - gender inflection', () => {
 
   it('רבים מעורב (זכר + נקבה) - משתמש בצורת רבים זכר', () => {
     const ctx = makeCtx({
-      actors: [{ role: 'מיופה', personIds: ['p1', 'p2'] }],
+      actors: [{ role: 'מיופה', persons: [david, sara] }],
     })
     expect(renderText('{{מיופה.יפעל}}', ctx)).toBe('יפעלו')
     expect(renderText('{{מיופה.תפקידו}}', ctx)).toBe('תפקידם')
@@ -185,14 +182,14 @@ describe('renderText - gender inflection', () => {
 
   it('רבות בלבד - נופל ל-plural כשאין plural_female במילון', () => {
     const ctx = makeCtx({
-      actors: [{ role: 'מיופה', personIds: ['p2', 'p3'] }],
+      actors: [{ role: 'מיופה', persons: [sara, rachel] }],
     })
     expect(renderText('{{מיופה.רשאי}}', ctx)).toBe('רשאים')
     expect(renderText('{{מיופה.תפקידו}}', ctx)).toBe('תפקידם')
   })
 
   it('מילה שלא במילון מוחזרת כמו שהיא', () => {
-    const ctx = makeCtx({ actors: [{ role: 'מיופה', personIds: ['p2'] }] })
+    const ctx = makeCtx({ actors: [{ role: 'מיופה', persons: [sara] }] })
     expect(renderText('{{מיופה.שטויות}}', ctx)).toBe('שטויות')
   })
 })
@@ -200,21 +197,21 @@ describe('renderText - gender inflection', () => {
 describe('renderText - multiple persons joining', () => {
   it('שמות של שני אנשים מצורפים עם " ו-"', () => {
     const ctx = makeCtx({
-      actors: [{ role: 'מיופה', personIds: ['p1', 'p2'] }],
+      actors: [{ role: 'מיופה', persons: [david, sara] }],
     })
     expect(renderText('{{מיופה.שם}}', ctx)).toBe('דוד כהן ו-שרה לוי')
   })
 
   it('תעודות זהות של שני אנשים מצורפות עם ", "', () => {
     const ctx = makeCtx({
-      actors: [{ role: 'מיופה', personIds: ['p1', 'p2'] }],
+      actors: [{ role: 'מיופה', persons: [david, sara] }],
     })
     expect(renderText('{{מיופה.תז}}', ctx)).toBe('123456789, 987654321')
   })
 
   it('כתובות של שני אנשים מצורפות עם ", "', () => {
     const ctx = makeCtx({
-      actors: [{ role: 'מיופה', personIds: ['p2', 'p3'] }],
+      actors: [{ role: 'מיופה', persons: [sara, rachel] }],
     })
     expect(renderText('{{מיופה.כתובת}}', ctx)).toBe('רחוב יפו 3, רחוב הים 5')
   })
@@ -222,18 +219,18 @@ describe('renderText - multiple persons joining', () => {
 
 describe('renderText - edge cases', () => {
   it('שחקן שלא קיים במסמך - מחזיר את ה-placeholder המקורי', () => {
-    const ctx = makeCtx({ actors: [{ role: 'ממנה', personIds: ['p1'] }] })
+    const ctx = makeCtx({ actors: [{ role: 'ממנה', persons: [david] }] })
     expect(renderText('{{מיופה.שם}}', ctx)).toBe('{{מיופה.שם}}')
   })
 
   it('שחקן עם personIds ריק - מחזיר את ה-placeholder המקורי', () => {
-    const ctx = makeCtx({ actors: [{ role: 'מיופה', personIds: [] }] })
+    const ctx = makeCtx({ actors: [{ role: 'מיופה', persons: [] }] })
     expect(renderText('{{מיופה.שם}}', ctx)).toBe('{{מיופה.שם}}')
   })
 
   it('שחקן שמצביע ל-personId לא קיים - מחזיר את ה-placeholder המקורי', () => {
     const ctx = makeCtx({
-      actors: [{ role: 'מיופה', personIds: ['p999'] }],
+      actors: [{ role: 'מיופה', persons: [] }],
     })
     expect(renderText('{{מיופה.שם}}', ctx)).toBe('{{מיופה.שם}}')
   })
@@ -250,8 +247,8 @@ describe('renderText - composite text', () => {
   it('טקסט מורכב עם מספר placeholders מסוגים שונים', () => {
     const ctx = makeCtx({
       actors: [
-        { role: 'ממנה', personIds: ['p1'] },
-        { role: 'מיופה', personIds: ['p2'] },
+        { role: 'ממנה', persons: [david] },
+        { role: 'מיופה', persons: [sara] },
       ],
       variables: { 'תאריך_חתימה': '15/05/2026' },
     })
@@ -263,7 +260,7 @@ describe('renderText - composite text', () => {
   })
 
   it('placeholder שמופיע פעמיים מוחלף בשני המקומות', () => {
-    const ctx = makeCtx({ actors: [{ role: 'ממנה', personIds: ['p1'] }] })
+    const ctx = makeCtx({ actors: [{ role: 'ממנה', persons: [david] }] })
     expect(renderText('{{ממנה.שם}} ו-{{ממנה.שם}}', ctx)).toBe('דוד כהן ו-דוד כהן')
   })
 })
@@ -295,7 +292,7 @@ describe('extractPlaceholders', () => {
 
 describe('renderDocument', () => {
   const ctx = makeCtx({
-    actors: [{ role: 'ממנה', personIds: ['p1'] }],
+    actors: [{ role: 'ממנה', persons: [david] }],
     sections: [
       {
         id: 's2',

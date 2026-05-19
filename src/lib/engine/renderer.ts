@@ -1,9 +1,12 @@
-import type { Document, Person, SectionLevel } from '@/lib/types'
+import type { Document, EmbeddedPerson, SectionLevel } from '@/lib/types'
 import { dictionary, type InflectedWord } from './dictionary'
 
+/**
+ * RenderContext — context לרינדור.
+ * שים לב: persons הוסר. הנתונים מגיעים מ-document.actors[X].persons inline.
+ */
 export interface RenderContext {
   document: Document
-  persons: Person[]
   dictionary?: Record<string, InflectedWord>
 }
 
@@ -33,10 +36,7 @@ function resolvePlaceholder(expr: string, ctx: RenderContext): string {
   const actor = ctx.document.actors.find((a) => a.role === actorRole)
   if (!actor) return `{{${expr}}}`
 
-  const persons = actor.personIds
-    .map((id) => ctx.persons.find((p) => p.id === id))
-    .filter((p): p is Person => p !== undefined)
-
+  const persons: EmbeddedPerson[] = actor.persons ?? []
   if (persons.length === 0) return `{{${expr}}}`
 
   const isPlural = persons.length > 1

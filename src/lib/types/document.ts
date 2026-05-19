@@ -1,3 +1,5 @@
+import type { EmbeddedPerson } from './person'
+
 export type DocumentType =
   | 'poa-property'
   | 'poa-personal'
@@ -30,9 +32,14 @@ export type DocumentStatus = 'draft' | 'review' | 'signed'
 
 export type SectionLevel = 'main' | 'sub' | 'sub-sub'
 
+/**
+ * שחקן במסמך (ממנה, מיופה כוח, יורש, וכו').
+ * persons מאוחסן inline — אין הפניה לטבלת persons.
+ * זה אומר שאם פרטי הלקוח ישתנו אחר כך, מסמכים ישנים לא ייפגעו.
+ */
 export interface DocumentActor {
   role: ActorRole
-  personIds: string[]
+  persons: EmbeddedPerson[]
   customLabel?: string
 }
 
