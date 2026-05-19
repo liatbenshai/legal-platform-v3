@@ -1,11 +1,11 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { logoutAction } from '@/lib/auth/actions'
 import { getClients } from '@/lib/db/clients'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
+import { TopNav } from '@/components/layout/TopNav'
 import {
   createDocument,
   deleteDocument,
@@ -27,16 +27,82 @@ const STATUS_LABELS: Record<DocumentStatus, string> = {
 }
 
 const STATUS_STYLES: Record<DocumentStatus, { bg: string; color: string }> = {
-  draft: { bg: '#F3F4F6', color: '#6B5544' },
-  review: { bg: '#FEF3C7', color: '#92660A' },
-  signed: { bg: '#DCFCE7', color: '#15803D' },
+  draft: {
+    bg: 'var(--status-draft-bg)',
+    color: 'var(--status-draft-fg)',
+  },
+  review: {
+    bg: 'var(--status-review-bg)',
+    color: 'var(--status-review-fg)',
+  },
+  signed: {
+    bg: 'var(--status-signed-bg)',
+    color: 'var(--status-signed-fg)',
+  },
 }
+
+// ארבעה קיצורי דרך ליצירה מהירה — תואמים את SUPPORTED_DOC_TYPES
+const QUICK_CREATE_TYPES: Array<{
+  type: DocumentType
+  shortLabel: string
+  icon: string
+}> = [
+  { type: 'poa-property', shortLabel: 'ייפוי כוח', icon: 'ti-key' },
+  { type: 'will-individual', shortLabel: 'צוואת יחיד', icon: 'ti-feather' },
+  { type: 'will-mutual', shortLabel: 'צוואה הדדית', icon: 'ti-users' },
+  { type: 'fee-agreement', shortLabel: 'שכר טרחה', icon: 'ti-receipt' },
+]
 
 function formatDate(d: Date): string {
   const day = String(d.getDate()).padStart(2, '0')
   const month = String(d.getMonth() + 1).padStart(2, '0')
   const year = d.getFullYear()
   return `${day}/${month}/${year}`
+}
+
+function formatTodayHebrew(): string {
+  const today = new Date()
+  const weekdays = ['א׳', 'ב׳', 'ג׳', 'ד׳', 'ה׳', 'ו׳', 'ש׳']
+  const months = [
+    'בינואר',
+    'בפברואר',
+    'במרץ',
+    'באפריל',
+    'במאי',
+    'ביוני',
+    'ביולי',
+    'באוגוסט',
+    'בספטמבר',
+    'באוקטובר',
+    'בנובמבר',
+    'בדצמבר',
+  ]
+  return `יום ${weekdays[today.getDay()]} ${today.getDate()} ${
+    months[today.getMonth()]
+  }`
+}
+
+function greeting(): string {
+  const h = new Date().getHours()
+  if (h < 5) return 'לילה טוב'
+  if (h < 12) return 'בוקר טוב'
+  if (h < 18) return 'צהריים טובים'
+  if (h < 21) return 'ערב טוב'
+  return 'לילה טוב'
+}
+
+function relativeTime(d: Date): string {
+  const diffMs = Date.now() - d.getTime()
+  const diffMin = Math.floor(diffMs / 60000)
+  if (diffMin < 1) return 'הרגע'
+  if (diffMin < 60) return `לפני ${diffMin} דק׳`
+  const diffHr = Math.floor(diffMin / 60)
+  if (diffHr < 24) return `לפני ${diffHr} שע׳`
+  const diffDays = Math.floor(diffHr / 24)
+  if (diffDays === 1) return 'אתמול'
+  if (diffDays < 7) return `לפני ${diffDays} ימים`
+  if (diffDays < 30) return `לפני ${Math.floor(diffDays / 7)} שב׳`
+  return formatDate(d)
 }
 
 type TypeFilter = 'all' | DocumentType
@@ -60,32 +126,83 @@ export default function DashboardPage() {
     useState<DocumentWithClient | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
 
-  const load = useCallback(async () => {
-    if (!user) return
-    setIsLoading(true)
-    setError(null)
-    try {
-      const [docs, cls] = await Promise.all([
-        getAllUserDocuments(supabase, user.id),
-        getClients(supabase, user.id),
-      ])
-      setDocuments(docs)
-      setClients(cls)
-    } catch {
-      setError('שגיאה בטעינת המסמכים')
-    } finally {
-      setIsLoading(false)
-    }
-  }, [supabase, user])
+  // "עכשיו" נקבע פעם אחת בעת טעינת המסך כדי למנוע חישובים לא דטרמיניסטיים בתוך useMemo
+  const [now] = useState(() => new Date())
 
   useEffect(() => {
     if (userLoading) return
     if (!user) {
-      setIsLoading(false)
+      Promise.resolve().then(() => setIsLoading(false))
       return
     }
-    void load()
-  }, [user, userLoading, load])
+
+    let cancelled = false
+    Promise.all([
+      getAllUserDocuments(supabase, user.id),
+      getClients(supabase, user.id),
+    ])
+      .then(([docs, cls]) => {
+        if (cancelled) return
+        setDocuments(docs)
+        setClients(cls)
+        setError(null)
+        setIsLoading(false)
+      })
+      .catch(() => {
+        if (cancelled) return
+        setError('שגיאה בטעינת המסמכים')
+        setIsLoading(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [user, userLoading, supabase])
+
+  // ===== חישוב סטטיסטיקות =====
+  const stats = useMemo(() => {
+    const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+
+    const activeDocs = documents.filter((d) => d.status !== 'signed').length
+    const reviewDocs = documents.filter((d) => d.status === 'review').length
+    const signedThisMonth = documents.filter(
+      (d) => d.status === 'signed' && d.updatedAt >= startOfMonth
+    ).length
+    const newClientsThisWeek = clients.filter(
+      (c) => c.createdAt >= oneWeekAgo
+    ).length
+
+    return {
+      active: activeDocs,
+      review: reviewDocs,
+      clients: clients.length,
+      newClientsThisWeek,
+      signedThisMonth,
+    }
+  }, [documents, clients, now])
+
+  const recentDocuments = useMemo(
+    () => documents.slice(0, 4),
+    [documents]
+  )
+
+  const recentClients = useMemo(() => {
+    const docCountByClient = new Map<string, number>()
+    documents.forEach((d) => {
+      docCountByClient.set(
+        d.clientId,
+        (docCountByClient.get(d.clientId) ?? 0) + 1
+      )
+    })
+    return [...clients]
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+      .slice(0, 4)
+      .map((c) => ({
+        ...c,
+        documentCount: docCountByClient.get(c.id) ?? 0,
+      }))
+  }, [clients, documents])
 
   const filtered = useMemo(() => {
     return documents.filter((d) => {
@@ -94,6 +211,19 @@ export default function DashboardPage() {
       return true
     })
   }, [documents, typeFilter, statusFilter])
+
+  // ===== Handlers =====
+  function openQuickCreate(type: DocumentType) {
+    setNewDocType(type)
+    setNewDocClientId('')
+    setIsNewDocOpen(true)
+  }
+
+  function openGenericCreate() {
+    setNewDocType(null)
+    setNewDocClientId('')
+    setIsNewDocOpen(true)
+  }
 
   async function handleDeleteDocument() {
     if (!docToDelete) return
@@ -129,157 +259,499 @@ export default function DashboardPage() {
 
   return (
     <main
-      style={{ minHeight: '100vh', backgroundColor: 'var(--bg-secondary)' }}
+      style={{
+        minHeight: '100vh',
+        backgroundColor: 'var(--bg-secondary)',
+      }}
     >
-      <header
-        style={{
-          backgroundColor: '#fff',
-          borderBottom: '1px solid var(--border-default)',
-        }}
-      >
-        <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
-          <h1
-            className="doc-title"
-            style={{
-              fontSize: 18,
-              fontWeight: 500,
-              color: 'var(--color-primary)',
-              margin: 0,
-            }}
-          >
-            משרד עורך דין · מערכת מסמכים
-          </h1>
-          <div className="flex items-center gap-4">
-            <span
-              style={{ fontSize: 12, color: 'var(--text-secondary)' }}
-              dir="ltr"
-            >
-              {user?.email}
-            </span>
-            <Link
-              href="/settings"
-              style={{
-                fontSize: 13,
-                padding: '6px 10px',
-                color: 'var(--text-secondary)',
-                textDecoration: 'none',
-                border: '0.5px solid var(--border-hover)',
-                borderRadius: 4,
-              }}
-            >
-              הגדרות
-            </Link>
-            <form action={logoutAction}>
-              <button
-                type="submit"
-                style={{
-                  padding: '6px 14px',
-                  fontSize: 13,
-                  color: 'var(--text-secondary)',
-                  border: '0.5px solid var(--border-hover)',
-                  borderRadius: 4,
-                  backgroundColor: 'transparent',
-                  cursor: 'pointer',
-                }}
-              >
-                התנתקות
-              </button>
-            </form>
-          </div>
-        </div>
-      </header>
+      <TopNav clientsCount={clients.length} />
 
       <div className="max-w-6xl mx-auto px-6 py-8">
-        <div className="flex flex-col gap-4 mb-6">
-          <div className="flex items-end justify-between gap-4 flex-wrap">
-            <div>
-              <h2
-                className="doc-title"
-                style={{
-                  fontSize: 22,
-                  fontWeight: 500,
-                  color: 'var(--color-primary)',
-                  margin: '0 0 6px',
-                }}
-              >
-                המסמכים שלך
-              </h2>
+        {/* ===== כותרת + פעולות ===== */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'flex-start',
+            justifyContent: 'space-between',
+            marginBottom: 22,
+            gap: 12,
+            flexWrap: 'wrap',
+          }}
+        >
+          <div>
+            <h1
+              style={{
+                margin: '0 0 4px',
+                fontSize: 24,
+                fontWeight: 500,
+                color: 'var(--text-primary)',
+                letterSpacing: '-0.01em',
+              }}
+            >
+              {greeting()}
+              {user?.email ? `, ${user.email.split('@')[0]}` : ''}
+            </h1>
+            <p
+              style={{
+                margin: 0,
+                fontSize: 13,
+                color: 'var(--text-secondary)',
+              }}
+            >
+              {formatTodayHebrew()}
+            </p>
+          </div>
+
+          <div style={{ display: 'flex', gap: 8 }}>
+            <Link
+              href="/clients"
+              style={{
+                backgroundColor: '#fff',
+                color: 'var(--text-primary)',
+                border: '0.5px solid var(--border-hover)',
+                padding: '9px 14px',
+                borderRadius: 6,
+                fontSize: 13,
+                textDecoration: 'none',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+              }}
+            >
+              <i className="ti ti-user-plus" style={{ fontSize: 14 }} aria-hidden="true" />
+              לקוח חדש
+            </Link>
+            <button
+              type="button"
+              onClick={openGenericCreate}
+              disabled={clients.length === 0}
+              title={
+                clients.length === 0
+                  ? 'יש ליצור לקוח לפני יצירת מסמך'
+                  : ''
+              }
+              style={{
+                backgroundColor: 'var(--color-primary)',
+                color: '#fff',
+                border: 'none',
+                padding: '9px 16px',
+                borderRadius: 6,
+                fontSize: 13,
+                fontWeight: 500,
+                cursor: clients.length === 0 ? 'not-allowed' : 'pointer',
+                opacity: clients.length === 0 ? 0.5 : 1,
+                fontFamily: 'inherit',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+              }}
+            >
+              <i className="ti ti-plus" style={{ fontSize: 14 }} aria-hidden="true" />
+              מסמך חדש
+            </button>
+          </div>
+        </div>
+
+        {error && (
+          <div
+            style={{
+              marginBottom: 18,
+              padding: '10px 14px',
+              backgroundColor: '#FEE2E2',
+              border: '0.5px solid #FCA5A5',
+              borderRadius: 6,
+              color: '#991B1B',
+              fontSize: 13,
+            }}
+          >
+            {error}
+          </div>
+        )}
+
+        {/* ===== כרטיסי מספרים ===== */}
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
+            gap: 10,
+            marginBottom: 22,
+          }}
+        >
+          <StatCard label="מסמכים פעילים" value={stats.active} />
+          <StatCard
+            label="ממתינים לבדיקה"
+            value={stats.review}
+            tone="warning"
+          />
+          <StatCard
+            label="לקוחות"
+            value={stats.clients}
+            sub={
+              stats.newClientsThisWeek > 0
+                ? `+${stats.newClientsThisWeek} השבוע`
+                : undefined
+            }
+            subTone="success"
+          />
+          <StatCard
+            label="נחתמו החודש"
+            value={stats.signedThisMonth}
+            tone="success"
+          />
+        </div>
+
+        {/* ===== יצירה מהירה לפי סוג ===== */}
+        <p
+          style={{
+            margin: '0 0 10px',
+            fontSize: 12,
+            color: 'var(--text-secondary)',
+            fontWeight: 500,
+          }}
+        >
+          יצירה מהירה לפי סוג
+        </p>
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
+            gap: 8,
+            marginBottom: 22,
+          }}
+        >
+          {QUICK_CREATE_TYPES.map((qc) => (
+            <button
+              key={qc.type}
+              type="button"
+              onClick={() => openQuickCreate(qc.type)}
+              disabled={clients.length === 0}
+              title={
+                clients.length === 0
+                  ? 'יש ליצור לקוח לפני יצירת מסמך'
+                  : ''
+              }
+              style={{
+                backgroundColor: '#fff',
+                border: '0.5px solid var(--border-default)',
+                borderRight: '3px solid var(--color-accent)',
+                borderRadius: 6,
+                padding: 14,
+                textAlign: 'center',
+                cursor: clients.length === 0 ? 'not-allowed' : 'pointer',
+                opacity: clients.length === 0 ? 0.5 : 1,
+                fontFamily: 'inherit',
+                transition: 'border-color 120ms, transform 120ms',
+              }}
+              className="hover:!border-r-[3px] hover:!border-r-[color:var(--color-accent-hover)]"
+            >
+              <i
+                className={`ti ${qc.icon}`}
+                style={{ fontSize: 20, color: 'var(--color-primary)' }}
+                aria-hidden="true"
+              />
               <p
                 style={{
-                  fontSize: 13,
-                  color: 'var(--text-secondary)',
-                  margin: 0,
+                  margin: '6px 0 0',
+                  fontSize: 12,
+                  color: 'var(--text-primary)',
+                  fontWeight: 500,
                 }}
               >
-                {documents.length} מסמכים סך הכל · {filtered.length} מוצגים
+                {qc.shortLabel}
               </p>
+            </button>
+          ))}
+        </div>
+
+        {/* ===== שתי עמודות: מסמכים אחרונים + לקוחות אחרונים ===== */}
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+            gap: 12,
+            marginBottom: 28,
+          }}
+        >
+          {/* מסמכים אחרונים */}
+          <div
+            style={{
+              backgroundColor: '#fff',
+              border: '0.5px solid var(--border-default)',
+              borderRadius: 6,
+              overflow: 'hidden',
+            }}
+          >
+            <div
+              style={{
+                padding: '10px 14px',
+                borderBottom: '0.5px solid var(--border-default)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+              }}
+            >
+              <span
+                style={{
+                  fontSize: 12,
+                  color: 'var(--text-secondary)',
+                  fontWeight: 500,
+                }}
+              >
+                מסמכים אחרונים
+              </span>
+              <a
+                href="#all-documents"
+                style={{
+                  fontSize: 11,
+                  color: 'var(--color-primary)',
+                  textDecoration: 'none',
+                }}
+              >
+                כל המסמכים ‹
+              </a>
             </div>
-            <div className="flex gap-2">
+            {recentDocuments.length === 0 ? (
+              <div
+                style={{
+                  padding: 22,
+                  textAlign: 'center',
+                  fontSize: 13,
+                  color: 'var(--text-muted)',
+                }}
+              >
+                אין עדיין מסמכים
+              </div>
+            ) : (
+              recentDocuments.map((d, idx) => {
+                const statusStyle = STATUS_STYLES[d.status]
+                return (
+                  <Link
+                    key={d.id}
+                    href={`/clients/${d.clientId}/documents/${d.id}`}
+                    style={{
+                      display: 'block',
+                      padding: '10px 14px',
+                      textDecoration: 'none',
+                      color: 'inherit',
+                      borderBottom:
+                        idx === recentDocuments.length - 1
+                          ? 'none'
+                          : '0.5px solid var(--border-default)',
+                    }}
+                  >
+                    <p
+                      style={{
+                        margin: 0,
+                        fontSize: 13,
+                        color: 'var(--text-primary)',
+                        fontWeight: 500,
+                      }}
+                    >
+                      {d.title}
+                    </p>
+                    <p
+                      style={{
+                        margin: '2px 0 0',
+                        fontSize: 11,
+                        color: 'var(--text-muted)',
+                      }}
+                    >
+                      {d.clientName} · {relativeTime(d.updatedAt)}
+                    </p>
+                    <span
+                      style={{
+                        display: 'inline-block',
+                        marginTop: 4,
+                        backgroundColor: statusStyle.bg,
+                        color: statusStyle.color,
+                        fontSize: 10,
+                        padding: '2px 7px',
+                        borderRadius: 9,
+                        fontWeight: 500,
+                      }}
+                    >
+                      {STATUS_LABELS[d.status]}
+                    </span>
+                  </Link>
+                )
+              })
+            )}
+          </div>
+
+          {/* לקוחות אחרונים */}
+          <div
+            style={{
+              backgroundColor: '#fff',
+              border: '0.5px solid var(--border-default)',
+              borderRadius: 6,
+              overflow: 'hidden',
+            }}
+          >
+            <div
+              style={{
+                padding: '10px 14px',
+                borderBottom: '0.5px solid var(--border-default)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+              }}
+            >
+              <span
+                style={{
+                  fontSize: 12,
+                  color: 'var(--text-secondary)',
+                  fontWeight: 500,
+                }}
+              >
+                לקוחות אחרונים
+              </span>
               <Link
                 href="/clients"
                 style={{
-                  padding: '9px 14px',
-                  fontSize: 13,
-                  color: 'var(--text-secondary)',
-                  border: '0.5px solid var(--border-hover)',
-                  borderRadius: 4,
+                  fontSize: 11,
+                  color: 'var(--color-primary)',
                   textDecoration: 'none',
-                  backgroundColor: '#fff',
                 }}
               >
-                <i className="ti ti-folder" style={{ marginLeft: 4 }} />
-                תיקי לקוחות
+                כל הלקוחות ‹
               </Link>
-              <Link
-                href="/library"
-                style={{
-                  padding: '9px 14px',
-                  fontSize: 13,
-                  color: 'var(--text-secondary)',
-                  border: '0.5px solid var(--border-hover)',
-                  borderRadius: 4,
-                  textDecoration: 'none',
-                  backgroundColor: '#fff',
-                }}
-              >
-                <i className="ti ti-book" style={{ marginLeft: 4 }} />
-                ספרייה
-              </Link>
-              <button
-                type="button"
-                onClick={() => setIsNewDocOpen(true)}
-                disabled={clients.length === 0}
-                title={
-                  clients.length === 0 ? 'יש ליצור לקוח לפני יצירת מסמך' : ''
-                }
-                style={{
-                  padding: '9px 18px',
-                  fontSize: 13,
-                  fontWeight: 500,
-                  backgroundColor: 'var(--color-primary)',
-                  color: '#fff',
-                  border: 'none',
-                  borderRadius: 4,
-                  cursor: clients.length === 0 ? 'not-allowed' : 'pointer',
-                  opacity: clients.length === 0 ? 0.5 : 1,
-                }}
-              >
-                + מסמך חדש
-              </button>
             </div>
+            {recentClients.length === 0 ? (
+              <div
+                style={{
+                  padding: 22,
+                  textAlign: 'center',
+                  fontSize: 13,
+                  color: 'var(--text-muted)',
+                }}
+              >
+                אין עדיין לקוחות.{' '}
+                <Link
+                  href="/clients"
+                  style={{ color: 'var(--color-primary)' }}
+                >
+                  ליצירת לקוח ראשון
+                </Link>
+              </div>
+            ) : (
+              recentClients.map((c, idx) => (
+                <Link
+                  key={c.id}
+                  href={`/clients/${c.id}`}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 10,
+                    padding: '10px 14px',
+                    textDecoration: 'none',
+                    color: 'inherit',
+                    borderBottom:
+                      idx === recentClients.length - 1
+                        ? 'none'
+                        : '0.5px solid var(--border-default)',
+                  }}
+                >
+                  <div
+                    style={{
+                      width: 32,
+                      height: 32,
+                      borderRadius: '50%',
+                      backgroundColor: 'var(--bg-tertiary)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: 12,
+                      fontWeight: 500,
+                      color: 'var(--color-primary)',
+                      flexShrink: 0,
+                    }}
+                    aria-hidden="true"
+                  >
+                    {c.displayName.charAt(0)}
+                  </div>
+                  <div style={{ minWidth: 0 }}>
+                    <p
+                      style={{
+                        margin: 0,
+                        fontSize: 13,
+                        color: 'var(--text-primary)',
+                        fontWeight: 500,
+                      }}
+                    >
+                      {c.displayName}
+                    </p>
+                    <p
+                      style={{
+                        margin: '2px 0 0',
+                        fontSize: 11,
+                        color: 'var(--text-muted)',
+                      }}
+                    >
+                      נוסף {relativeTime(c.createdAt)} ·{' '}
+                      {c.documentCount} מסמכים
+                    </p>
+                  </div>
+                </Link>
+              ))
+            )}
+          </div>
+        </div>
+
+        {/* ===== כל המסמכים (גריד עם פילטרים) ===== */}
+        <div id="all-documents" style={{ scrollMarginTop: 80 }}>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'baseline',
+              justifyContent: 'space-between',
+              gap: 12,
+              flexWrap: 'wrap',
+              marginBottom: 12,
+            }}
+          >
+            <h2
+              style={{
+                margin: 0,
+                fontSize: 16,
+                fontWeight: 500,
+                color: 'var(--text-primary)',
+              }}
+            >
+              כל המסמכים
+            </h2>
+            <p
+              style={{
+                margin: 0,
+                fontSize: 12,
+                color: 'var(--text-secondary)',
+              }}
+            >
+              {documents.length} מסמכים סך הכל · {filtered.length} מוצגים
+            </p>
           </div>
 
-          <div className="flex gap-2 items-center" style={{ fontSize: 12 }}>
+          {/* פילטרים */}
+          <div
+            style={{
+              display: 'flex',
+              gap: 8,
+              alignItems: 'center',
+              marginBottom: 14,
+              fontSize: 12,
+              flexWrap: 'wrap',
+            }}
+          >
             <span style={{ color: 'var(--text-muted)' }}>סינון:</span>
             <select
               value={typeFilter}
               onChange={(e) => setTypeFilter(e.target.value as TypeFilter)}
               style={{
-                padding: '5px 8px',
+                padding: '5px 10px',
                 fontSize: 12,
                 border: '0.5px solid var(--border-hover)',
                 borderRadius: 4,
                 backgroundColor: '#fff',
+                fontFamily: 'inherit',
               }}
             >
               <option value="all">כל הסוגים</option>
@@ -295,11 +767,12 @@ export default function DashboardPage() {
                 setStatusFilter(e.target.value as StatusFilter)
               }
               style={{
-                padding: '5px 8px',
+                padding: '5px 10px',
                 fontSize: 12,
                 border: '0.5px solid var(--border-hover)',
                 borderRadius: 4,
                 backgroundColor: '#fff',
+                fontFamily: 'inherit',
               }}
             >
               <option value="all">כל הסטטוסים</option>
@@ -308,218 +781,179 @@ export default function DashboardPage() {
               <option value="signed">חתום</option>
             </select>
           </div>
-        </div>
 
-        {error && (
-          <div
-            role="alert"
-            style={{
-              marginBottom: 16,
-              padding: '10px 14px',
-              backgroundColor: '#FEE2E2',
-              border: '0.5px solid #FCA5A5',
-              color: '#991B1B',
-              borderRadius: 4,
-              fontSize: 13,
-            }}
-          >
-            {error}
-          </div>
-        )}
-
-        {isLoading ? (
-          <div
-            className="text-center py-12"
-            style={{ color: 'var(--text-muted)', fontSize: 13 }}
-          >
-            טוען...
-          </div>
-        ) : documents.length === 0 ? (
-          <div
-            className="text-center py-16"
-            style={{
-              backgroundColor: '#fff',
-              border: '1px solid var(--border-default)',
-              borderRadius: 8,
-            }}
-          >
-            <p
+          {isLoading ? (
+            <div
               style={{
-                fontSize: 16,
-                fontWeight: 500,
-                color: 'var(--text-primary)',
-                margin: '0 0 8px',
-              }}
-            >
-              אין עדיין מסמכים
-            </p>
-            <p
-              style={{
+                padding: 40,
+                textAlign: 'center',
+                color: 'var(--text-muted)',
                 fontSize: 13,
-                color: 'var(--text-secondary)',
-                margin: '0 0 20px',
               }}
             >
-              {clients.length === 0
-                ? 'צרי קודם לקוח, ואז ניתן ליצור עבורו מסמך.'
-                : 'לחצי על "+ מסמך חדש" כדי להתחיל.'}
-            </p>
-            {clients.length === 0 && (
-              <Link
-                href="/clients"
-                style={{
-                  display: 'inline-block',
-                  padding: '9px 18px',
-                  fontSize: 13,
-                  fontWeight: 500,
-                  backgroundColor: 'var(--color-primary)',
-                  color: '#fff',
-                  borderRadius: 4,
-                  textDecoration: 'none',
-                }}
-              >
-                לעמוד הלקוחות
-              </Link>
-            )}
-          </div>
-        ) : filtered.length === 0 ? (
-          <div
-            className="text-center py-12"
-            style={{ color: 'var(--text-muted)', fontSize: 13 }}
-          >
-            אין מסמכים שתואמים לסינון
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filtered.map((d) => {
-              const statusStyle = STATUS_STYLES[d.status]
-              const typeLabel = DOC_TYPE_CONFIGS[d.type]?.label ?? d.type
-              return (
-                <div key={d.id} style={{ position: 'relative' }}>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.preventDefault()
-                      e.stopPropagation()
-                      setDocToDelete(d)
-                    }}
-                    aria-label={`מחק את ${d.title}`}
-                    title="מחק מסמך"
-                    style={{
-                      position: 'absolute',
-                      top: 10,
-                      left: 10,
-                      width: 24,
-                      height: 24,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      color: 'var(--text-muted)',
-                      backgroundColor: 'transparent',
-                      border: 'none',
-                      borderRadius: 4,
-                      fontSize: 16,
-                      lineHeight: 1,
-                      cursor: 'pointer',
-                      zIndex: 2,
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.color = '#DC2626'
-                      e.currentTarget.style.backgroundColor = '#FEE2E2'
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.color = 'var(--text-muted)'
-                      e.currentTarget.style.backgroundColor = 'transparent'
-                    }}
-                  >
-                    ×
-                  </button>
-                  <Link
-                  href={`/clients/${d.clientId}/documents/${d.id}`}
-                  style={{
-                    display: 'block',
-                    backgroundColor: '#fff',
-                    border: '1px solid var(--border-default)',
-                    borderRadius: 8,
-                    padding: 18,
-                    textDecoration: 'none',
-                    color: 'inherit',
-                    transition: 'border-color 120ms, transform 120ms',
-                  }}
-                  className="hover:border-stone-400 hover:-translate-y-0.5"
-                >
-                  <div className="flex items-start justify-between gap-2 mb-3" style={{ paddingLeft: 22 }}>
-                    <span
+              טוען...
+            </div>
+          ) : filtered.length === 0 ? (
+            <div
+              style={{
+                padding: 40,
+                textAlign: 'center',
+                backgroundColor: '#fff',
+                border: '0.5px dashed var(--border-hover)',
+                borderRadius: 6,
+                color: 'var(--text-muted)',
+                fontSize: 13,
+              }}
+            >
+              לא נמצאו מסמכים התואמים את הסינון
+            </div>
+          ) : (
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns:
+                  'repeat(auto-fill, minmax(260px, 1fr))',
+                gap: 12,
+              }}
+            >
+              {filtered.map((d) => {
+                const typeLabel = DOC_TYPE_CONFIGS[d.type]?.label ?? d.type
+                const statusStyle = STATUS_STYLES[d.status]
+                return (
+                  <div key={d.id} style={{ position: 'relative' }}>
+                    <button
+                      type="button"
+                      onClick={() => setDocToDelete(d)}
+                      title="מחיקת מסמך"
+                      aria-label="מחיקת מסמך"
                       style={{
-                        fontSize: 11,
+                        position: 'absolute',
+                        top: 10,
+                        insetInlineStart: 10,
+                        zIndex: 1,
+                        width: 22,
+                        height: 22,
+                        border: 'none',
+                        backgroundColor: 'transparent',
                         color: 'var(--text-muted)',
-                        textTransform: 'uppercase',
-                        letterSpacing: 0.5,
+                        cursor: 'pointer',
+                        fontSize: 16,
+                        lineHeight: 1,
+                        borderRadius: 4,
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.color = '#DC2626'
+                        e.currentTarget.style.backgroundColor = '#FEE2E2'
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.color = 'var(--text-muted)'
+                        e.currentTarget.style.backgroundColor = 'transparent'
                       }}
                     >
-                      {typeLabel}
-                    </span>
-                    <span
+                      ×
+                    </button>
+                    <Link
+                      href={`/clients/${d.clientId}/documents/${d.id}`}
                       style={{
-                        fontSize: 10,
-                        padding: '2px 7px',
-                        borderRadius: 3,
-                        backgroundColor: statusStyle.bg,
-                        color: statusStyle.color,
-                        flexShrink: 0,
-                        fontWeight: 500,
+                        display: 'block',
+                        backgroundColor: '#fff',
+                        border: '0.5px solid var(--border-default)',
+                        borderRadius: 8,
+                        padding: 16,
+                        textDecoration: 'none',
+                        color: 'inherit',
                       }}
                     >
-                      {STATUS_LABELS[d.status]}
-                    </span>
+                      <div
+                        style={{
+                          display: 'flex',
+                          alignItems: 'flex-start',
+                          justifyContent: 'space-between',
+                          gap: 8,
+                          marginBottom: 10,
+                          paddingInlineStart: 24,
+                        }}
+                      >
+                        <span
+                          style={{
+                            fontSize: 11,
+                            color: 'var(--text-muted)',
+                            letterSpacing: 0.3,
+                          }}
+                        >
+                          {typeLabel}
+                        </span>
+                        <span
+                          style={{
+                            fontSize: 10,
+                            padding: '2px 7px',
+                            borderRadius: 9,
+                            backgroundColor: statusStyle.bg,
+                            color: statusStyle.color,
+                            flexShrink: 0,
+                            fontWeight: 500,
+                          }}
+                        >
+                          {STATUS_LABELS[d.status]}
+                        </span>
+                      </div>
+                      <h3
+                        style={{
+                          fontSize: 15,
+                          fontWeight: 500,
+                          color: 'var(--text-primary)',
+                          margin: '0 0 12px',
+                          lineHeight: 1.4,
+                          minHeight: 42,
+                        }}
+                      >
+                        {d.title}
+                      </h3>
+                      <div
+                        style={{
+                          paddingTop: 10,
+                          borderTop:
+                            '0.5px solid var(--border-default)',
+                          fontSize: 12,
+                          color: 'var(--text-secondary)',
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                        }}
+                      >
+                        <span
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 4,
+                          }}
+                        >
+                          <i
+                            className="ti ti-user"
+                            style={{ fontSize: 12 }}
+                            aria-hidden="true"
+                          />
+                          {d.clientName}
+                        </span>
+                        <span
+                          style={{
+                            fontSize: 11,
+                            color: 'var(--text-muted)',
+                          }}
+                        >
+                          {formatDate(d.updatedAt)}
+                        </span>
+                      </div>
+                    </Link>
                   </div>
-                  <h3
-                    className="doc-title"
-                    style={{
-                      fontSize: 16,
-                      fontWeight: 500,
-                      color: 'var(--color-primary)',
-                      margin: '0 0 14px',
-                      lineHeight: 1.35,
-                      minHeight: 42,
-                    }}
-                  >
-                    {d.title}
-                  </h3>
-                  <div
-                    className="flex items-center justify-between"
-                    style={{
-                      paddingTop: 12,
-                      borderTop: '0.5px solid var(--border-default)',
-                      fontSize: 12,
-                      color: 'var(--text-secondary)',
-                    }}
-                  >
-                    <span className="truncate">
-                      <i
-                        className="ti ti-user"
-                        style={{ marginLeft: 4, fontSize: 12 }}
-                      />
-                      {d.clientName}
-                    </span>
-                    <span
-                      style={{
-                        fontSize: 11,
-                        color: 'var(--text-muted)',
-                        flexShrink: 0,
-                      }}
-                    >
-                      עודכן {formatDate(d.updatedAt)}
-                    </span>
-                  </div>
-                </Link>
-                </div>
-              )
-            })}
-          </div>
-        )}
+                )
+              })}
+            </div>
+          )}
+        </div>
       </div>
 
+      {/* ===== דיאלוג מחיקה ===== */}
       <ConfirmDialog
         open={Boolean(docToDelete)}
         title="מחיקת מסמך"
@@ -535,17 +969,19 @@ export default function DashboardPage() {
         onCancel={() => setDocToDelete(null)}
       />
 
+      {/* ===== דיאלוג מסמך חדש ===== */}
       {isNewDocOpen && (
         <div
           onClick={() => setIsNewDocOpen(false)}
           style={{
             position: 'fixed',
             inset: 0,
-            backgroundColor: 'rgba(61, 40, 23, 0.4)',
+            backgroundColor: 'rgba(15, 23, 42, 0.45)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             zIndex: 50,
+            padding: 16,
           }}
         >
           <div
@@ -554,17 +990,16 @@ export default function DashboardPage() {
               backgroundColor: '#fff',
               borderRadius: 8,
               padding: 24,
-              minWidth: 380,
-              maxWidth: 480,
-              boxShadow: '0 12px 32px rgba(61, 40, 23, 0.15)',
+              width: '100%',
+              maxWidth: 460,
+              boxShadow: '0 12px 32px rgba(15, 23, 42, 0.18)',
             }}
           >
             <h3
-              className="doc-title"
               style={{
                 fontSize: 18,
                 fontWeight: 500,
-                color: 'var(--color-primary)',
+                color: 'var(--text-primary)',
                 margin: '0 0 16px',
               }}
             >
@@ -586,7 +1021,9 @@ export default function DashboardPage() {
               <select
                 value={newDocType ?? ''}
                 onChange={(e) =>
-                  setNewDocType((e.target.value || null) as DocumentType | null)
+                  setNewDocType(
+                    (e.target.value || null) as DocumentType | null
+                  )
                 }
                 style={{
                   width: '100%',
@@ -595,6 +1032,7 @@ export default function DashboardPage() {
                   border: '0.5px solid var(--border-hover)',
                   borderRadius: 4,
                   backgroundColor: '#fff',
+                  fontFamily: 'inherit',
                 }}
               >
                 <option value="">בחרי סוג…</option>
@@ -628,6 +1066,7 @@ export default function DashboardPage() {
                   border: '0.5px solid var(--border-hover)',
                   borderRadius: 4,
                   backgroundColor: '#fff',
+                  fontFamily: 'inherit',
                 }}
               >
                 <option value="">בחרי לקוח…</option>
@@ -639,18 +1078,25 @@ export default function DashboardPage() {
               </select>
             </div>
 
-            <div className="flex gap-2 justify-end">
+            <div
+              style={{
+                display: 'flex',
+                gap: 8,
+                justifyContent: 'flex-end',
+              }}
+            >
               <button
                 type="button"
                 onClick={() => setIsNewDocOpen(false)}
                 style={{
                   padding: '8px 14px',
                   fontSize: 13,
-                  color: 'var(--text-secondary)',
+                  color: 'var(--text-primary)',
                   border: '0.5px solid var(--border-hover)',
                   borderRadius: 4,
                   backgroundColor: '#fff',
                   cursor: 'pointer',
+                  fontFamily: 'inherit',
                 }}
               >
                 ביטול
@@ -673,6 +1119,7 @@ export default function DashboardPage() {
                       : 'pointer',
                   opacity:
                     !newDocType || !newDocClientId || isCreating ? 0.5 : 1,
+                  fontFamily: 'inherit',
                 }}
               >
                 {isCreating ? 'יוצר...' : 'יצירה'}
@@ -682,5 +1129,73 @@ export default function DashboardPage() {
         </div>
       )}
     </main>
+  )
+}
+
+// ============================================================
+// כרטיס סטטיסטיקה
+// ============================================================
+interface StatCardProps {
+  label: string
+  value: number
+  sub?: string
+  tone?: 'default' | 'warning' | 'success'
+  subTone?: 'default' | 'warning' | 'success'
+}
+
+function StatCard({
+  label,
+  value,
+  sub,
+  tone = 'default',
+  subTone = 'default',
+}: StatCardProps) {
+  const valueColor =
+    tone === 'warning'
+      ? 'var(--status-review-fg)'
+      : tone === 'success'
+      ? 'var(--status-success)'
+      : 'var(--text-primary)'
+  const subColor =
+    subTone === 'success'
+      ? 'var(--status-success)'
+      : subTone === 'warning'
+      ? 'var(--status-review-fg)'
+      : 'var(--text-muted)'
+
+  return (
+    <div
+      style={{
+        backgroundColor: '#fff',
+        border: '0.5px solid var(--border-default)',
+        borderRadius: 6,
+        padding: 14,
+      }}
+    >
+      <p
+        style={{
+          margin: 0,
+          fontSize: 11,
+          color: 'var(--text-secondary)',
+        }}
+      >
+        {label}
+      </p>
+      <p
+        style={{
+          margin: '4px 0 0',
+          fontSize: 22,
+          fontWeight: 500,
+          color: valueColor,
+        }}
+      >
+        {value}
+      </p>
+      {sub && (
+        <p style={{ margin: '2px 0 0', fontSize: 10, color: subColor }}>
+          {sub}
+        </p>
+      )}
+    </div>
   )
 }
