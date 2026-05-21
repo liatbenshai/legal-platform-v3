@@ -1,4 +1,5 @@
 import type { Document, EmbeddedPerson, SectionLevel } from '@/lib/types'
+import { getAutoAppendedSections } from '@/lib/documents/auto-sections'
 import { dictionary, type InflectedWord } from './dictionary'
 
 /**
@@ -88,7 +89,11 @@ export function renderText(text: string, ctx: RenderContext): string {
 }
 
 export function renderDocument(ctx: RenderContext): RenderedSection[] {
-  return ctx.document.sections
+  const userSections = ctx.document.sections
+  const autoSections = getAutoAppendedSections(ctx.document)
+  const allSections = [...userSections, ...autoSections]
+
+  return allSections
     .slice()
     .sort((a, b) => a.order - b.order)
     .map((section) => ({

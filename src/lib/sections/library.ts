@@ -57,7 +57,8 @@ import sec054 from '@templates/poa-medical/SEC_054.json'
 import secW01 from '@templates/will-individual/SEC_W01.json'
 import secW02 from '@templates/will-individual/SEC_W02.json'
 import secW03 from '@templates/will-individual/SEC_W03.json'
-import secW04 from '@templates/will-individual/SEC_W04.json'
+// הערה: SEC_W04 (אישור עדים) הוסר מהספרייה — הוא מתווסף אוטומטית
+// בסוף כל צוואת יחיד דרך auto-sections.ts
 
 import type { ActorRole, DocumentType } from '@/lib/types'
 
@@ -140,7 +141,6 @@ export const sectionLibrary: LibrarySection[] = [
   secW01,
   secW02,
   secW03,
-  secW04,
 ] as LibrarySection[]
 
 export const CATEGORY_LABELS: Record<DocumentType, string> = {
