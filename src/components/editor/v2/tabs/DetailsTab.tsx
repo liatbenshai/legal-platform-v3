@@ -17,13 +17,11 @@ interface DetailsTabProps {
   onChange: (next: DocumentDetails) => void
 }
 
-type GroupId = 'assets' | 'financial' | 'medical' | 'preferences'
+type GroupId = 'assets' | 'financial'
 
 const GROUPS: Array<{ id: GroupId; label: string; icon: string }> = [
   { id: 'assets', label: 'נכסים', icon: 'ti-building-bank' },
   { id: 'financial', label: 'רכוש פיננסי', icon: 'ti-coin' },
-  { id: 'medical', label: 'רפואה', icon: 'ti-stethoscope' },
-  { id: 'preferences', label: 'העדפות אישיות', icon: 'ti-heart' },
 ]
 
 const PROPERTY_STATUSES: PropertyStatus[] = ['מגורים', 'השקעה', 'השכרה']
@@ -96,8 +94,6 @@ export function DetailsTab({ details, onChange }: DetailsTabProps) {
   const [open, setOpen] = useState<Record<GroupId, boolean>>({
     assets: true,
     financial: false,
-    medical: false,
-    preferences: false,
   })
 
   function toggle(id: GroupId) {
@@ -268,26 +264,6 @@ export function DetailsTab({ details, onChange }: DetailsTabProps) {
                     add={addFinancial}
                     update={updateFinancial}
                     remove={removeFinancial}
-                  />
-                )}
-                {g.id === 'medical' && (
-                  <DoctorsGroup
-                    items={details.doctors}
-                    add={addDoctor}
-                    update={updateDoctor}
-                    remove={removeDoctor}
-                  />
-                )}
-                {g.id === 'preferences' && (
-                  <PreferencesGroup
-                    dietary={details.dietaryPreferences}
-                    special={details.specialRequests}
-                    onChangeDietary={(v) =>
-                      onChange({ ...details, dietaryPreferences: v })
-                    }
-                    onChangeSpecial={(v) =>
-                      onChange({ ...details, specialRequests: v })
-                    }
                   />
                 )}
               </div>

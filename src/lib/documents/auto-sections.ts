@@ -1,4 +1,76 @@
 import type { Document, DocumentSection, DocumentType } from '@/lib/types'
+import {
+  cleanAuthority,
+  DOMAIN_PHRASE_PLURAL,
+  JOINTNESS_OPTIONS,
+  parseAuthority,
+} from '@/lib/documents/authority'
+
+const POA_TYPES: DocumentType[] = ['poa-property', 'poa-personal', 'poa-medical']
+
+/**
+ * סעיף חלוקת סמכויות — מתווסף אוטומטית בראש מסמך ייפוי כוח
+ * כאשר הוגדרה חלוקה (אילו מיופי כוח אחראים על אילו תחומים).
+ */
+function buildAuthorityClause(doc: Document): DocumentSection | null {
+  if (!POA_TYPES.includes(doc.type)) return null
+
+  const attorneys = doc.actors.find((a) => a.role === 'מיופה')?.persons ?? []
+  if (attorneys.length === 0) return null
+
+  const authority = cleanAuthority(parseAuthority(doc.variables), attorneys.length)
+  if (authority.scopes.length === 0) return null
+
+  // בונים פסקה לכל תחום
+  const paragraphs: string[] = []
+  for (const scope of authority.scopes) {
+    const responsibleAttorneys = scope.attorneyIndices
+      .map((i) => attorneys[i])
+      .filter((a) => a !== undefined)
+    if (responsibleAttorneys.length === 0) continue
+
+    const domainPhrase = DOMAIN_PHRASE_PLURAL[scope.domain] ?? scope.domain
+    const namesText = responsibleAttorneys
+      .map((a) => {
+        const fullName = `${a.firstName} ${a.lastName}`.trim()
+        return a.idNumber ? `${fullName}, ת.ז. ${a.idNumber}` : fullName
+      })
+      .join(' ו-')
+
+    const isPlural = responsibleAttorneys.length > 1
+    const allFemale = responsibleAttorneys.every((a) => a.gender === 'female')
+    const titleText = isPlural
+      ? allFemale
+        ? 'מיופות הכוח הן'
+        : 'מיופי הכוח הם'
+      : responsibleAttorneys[0].gender === 'female'
+        ? 'מיופת הכוח היא'
+        : 'מיופה הכוח הוא'
+
+    let para = `בעניינים ${domainPhrase} — ${titleText} ${namesText}.`
+
+    if (isPlural && scope.jointness) {
+      const jointnessOpt = JOINTNESS_OPTIONS.find(
+        (j) => j.value === scope.jointness
+      )
+      if (jointnessOpt) {
+        para += ` ${jointnessOpt.clauseText}.`
+      }
+    }
+
+    paragraphs.push(para)
+  }
+
+  if (paragraphs.length === 0) return null
+
+  return {
+    id: '__auto_authority',
+    order: -10000, // מבטיח שיופיע ראשון
+    title: 'חלוקת סמכויות בין מיופי הכוח',
+    level: 'main',
+    content: paragraphs.join('\n\n'),
+  }
+}
 
 /**
  * סעיף אישור עדים — מצורף בסוף כל צוואת יחיד אוטומטית.
@@ -40,16 +112,22 @@ const WITNESS_SECTION_WILL_INDIVIDUAL: DocumentSection = {
  * הסעיף האוטומטי לא יתווסף — למניעת כפילות בצוואות ישנות.
  */
 export function getAutoAppendedSections(doc: Document): DocumentSection[] {
+  const sections: DocumentSection[] = []
   const type: DocumentType = doc.type
 
+  // ייפוי כוח: סעיף חלוקת סמכויות בראש
+  const authorityClause = buildAuthorityClause(doc)
+  if (authorityClause) sections.push(authorityClause)
+
+  // צוואת יחיד: סעיף אישור עדים בסוף
   if (type === 'will-individual') {
-    // הימנעות מכפילות עם סעיף עדים שנוסף ידנית בעבר (SEC_W04)
     const alreadyHasWitnessManually = doc.sections.some(
       (s) => s.templateId === 'SEC_W04'
     )
-    if (alreadyHasWitnessManually) return []
-    return [WITNESS_SECTION_WILL_INDIVIDUAL]
+    if (!alreadyHasWitnessManually) {
+      sections.push(WITNESS_SECTION_WILL_INDIVIDUAL)
+    }
   }
 
-  return []
+  return sections
 }

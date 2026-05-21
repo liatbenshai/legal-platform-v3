@@ -27,6 +27,12 @@ import {
   ACTOR_LABELS,
   getDocTypeConfig,
 } from '@/lib/documents/type-config'
+import {
+  AUTHORITY_KEY,
+  parseAuthority,
+  serializeAuthority,
+  type AuthorityConfig,
+} from '@/lib/documents/authority'
 import { buildDetailsSections } from '@/lib/engine/details-sections'
 import { dictionary as staticDictionary } from '@/lib/engine/dictionary'
 import { renderDocument } from '@/lib/engine/renderer'
@@ -382,11 +388,33 @@ export default function DocumentEditorPage() {
       const next = current.includes(domain)
         ? current.filter((d) => d !== domain)
         : [...current, domain]
-      return {
-        ...doc,
-        variables: { ...doc.variables, domains: next.join(',') },
+      // אם הוסר תחום — להסיר גם את ה-scope שלו
+      let nextVariables: Record<string, string> = {
+        ...doc.variables,
+        domains: next.join(','),
       }
+      if (current.includes(domain) && !next.includes(domain)) {
+        const auth = parseAuthority(doc.variables)
+        const cleaned: AuthorityConfig = {
+          scopes: auth.scopes.filter((s) => s.domain !== domain),
+        }
+        nextVariables = {
+          ...nextVariables,
+          [AUTHORITY_KEY]: serializeAuthority(cleaned),
+        }
+      }
+      return { ...doc, variables: nextVariables }
     })
+  }
+
+  function handleAuthorityChange(config: AuthorityConfig) {
+    applyChange((doc) => ({
+      ...doc,
+      variables: {
+        ...doc.variables,
+        [AUTHORITY_KEY]: serializeAuthority(config),
+      },
+    }))
   }
 
   function handleAddSection(template: LibrarySection) {
@@ -609,7 +637,10 @@ export default function DocumentEditorPage() {
           {activeTabSpec?.kind === 'powers' && (
             <PowersTab
               selectedDomains={allowedDomains}
-              onToggle={handleDomainToggle}
+              onToggleDomain={handleDomainToggle}
+              attorneys={getActorPersons(document, 'מיופה')}
+              authority={parseAuthority(document.variables)}
+              onAuthorityChange={handleAuthorityChange}
             />
           )}
           {activeTabSpec?.kind === 'details' && (
